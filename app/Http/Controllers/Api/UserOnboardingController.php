@@ -128,6 +128,7 @@ class UserOnboardingController extends Controller
 
     /**
      * aa
+     * aa
      * POST /api/onboarding/worker-type
      * Step 5W: Select worker type (Student ARC, Blue Collar, etc.)
      * Also generates the document requirement checklist.
