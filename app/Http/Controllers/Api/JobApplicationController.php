@@ -231,8 +231,33 @@ class JobApplicationController extends Controller
             ], 403);
         }
 
+        $currentStatus = $application->status;
+        $newStatus = $request->status;
+
+        // ── Strict Status Flow Rules ──────────────────────────────────────────
+        if ($newStatus === 'shortlisted' && in_array($currentStatus, ['accepted', 'rejected', 'shortlisted'])) {
+            return response()->json([
+                'success' => false, 'error' => 'invalid_status_transition',
+                'message' => 'Cannot shortlist an application that is already accepted, rejected, or shortlisted.',
+            ], 422);
+        }
+
+        if ($newStatus === 'accepted' && in_array($currentStatus, ['accepted', 'rejected'])) {
+            return response()->json([
+                'success' => false, 'error' => 'invalid_status_transition',
+                'message' => 'Cannot accept an application that is already accepted or rejected.',
+            ], 422);
+        }
+
+        if ($newStatus === 'rejected' && $currentStatus === 'rejected') {
+            return response()->json([
+                'success' => false, 'error' => 'invalid_status_transition',
+                'message' => 'Application is already rejected.',
+            ], 422);
+        }
+
         $application->update([
-            'status'         => $request->status,
+            'status'         => $newStatus,
             'employer_notes' => $request->employer_notes,
         ]);
 
