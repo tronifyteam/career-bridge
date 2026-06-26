@@ -1,0 +1,82 @@
+name: Deploy to VPS and GCP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-vps:
+    name: Deploy to Lightnode VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/migrant_work_tw_be
+
+            echo "=== [1/8] Pulling latest code ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== [2/8] Installing PHP dependencies ==="
+            composer install --no-dev --optimize-autoloader --no-interaction
+
+            echo "=== [3/8] Enabling maintenance mode ==="
+            php artisan down --retry=60 --render="errors::503" || true
+
+            echo "=== [4/8] Running database migrations ==="
+            php artisan migrate --force
+
+            echo "=== [5/8] Running seeders (safe for production) ==="
+            php artisan db:seed --force
+
+            echo "=== [6/8] Creating storage symlink (idempotent) ==="
+            php artisan storage:link --force || true
+
+            echo "=== [7/8] Clearing and caching config ==="
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+
+            echo "=== [8/8] Bringing app back online ==="
+            php artisan up
+
+            echo "=== [9/9] Restarting Reverb WebSocket server ==="
+            if command -v supervisorctl &> /dev/null; then
+              sudo supervisorctl reread
+              sudo supervisorctl update
+              sudo supervisorctl restart reverb || sudo supervisorctl start reverb || echo "WARNING: Reverb supervisor not configured yet"
+            else
+              echo "WARNING: supervisorctl not found — Reverb may not be running"
+            fi
+
+            echo "=== Deployment complete ==="
+            echo "Health check:"
+            curl -sf http://localhost/api/health || echo "WARNING: Health check failed"
+
+  deploy-gcp:
+    name: Deploy to Google Cloud Run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Build and Deploy to Cloud Run via Cloud Build
+        run: |
+          gcloud builds submit --project=${{ secrets.GCP_PROJECT_ID }} --config=cloudbuild.yaml

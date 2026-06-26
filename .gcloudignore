@@ -1,0 +1,11 @@
+.gcloudignore
+.git
+.gitignore
+node_modules/
+vendor/
+bootstrap/cache/
+storage/logs/
+storage/framework/
+.env
+.idea/
+.vscode/
