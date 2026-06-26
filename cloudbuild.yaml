@@ -19,7 +19,7 @@ steps:
       - '--region'
       - '$_REGION'
       - '--allow-unauthenticated'
-      - '--set-env-vars'
+      - '--update-env-vars'
       - 'APP_ENV=production,APP_DEBUG=false'
 
 images:
