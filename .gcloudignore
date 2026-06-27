@@ -7,5 +7,6 @@ bootstrap/cache/
 storage/logs/
 storage/framework/
 .env
+.env.*
 .idea/
 .vscode/

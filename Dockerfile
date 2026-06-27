@@ -45,6 +45,9 @@ RUN mkdir -p /var/www/html/bootstrap/cache \
 # Install composer dependencies
 RUN composer install --optimize-autoloader --no-dev
 
+# Create storage symlink
+RUN php artisan storage:link
+
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage \

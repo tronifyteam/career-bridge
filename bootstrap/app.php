@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ['prefix' => 'api', 'middleware' => ['auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->trustProxies(at: '*');
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
         $middleware->alias([
             'is_admin'    => \App\Http\Middleware\IsAdmin::class,

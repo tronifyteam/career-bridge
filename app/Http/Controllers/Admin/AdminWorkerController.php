@@ -271,7 +271,10 @@ class AdminWorkerController extends Controller
 
         $this->workerStatus->onDocumentApproved($document);
         $this->workerStatus->logVerification($document, 'document', 'approved', $request->note);
-        $this->fcmService->sendToUser($document->user, 'Dokumen Disetujui', "Dokumen {$document->documentType->document_type_name} Anda telah disetujui.");
+        if ($document->user) {
+            $docName = $document->documentType?->document_type_name ?? 'Pendukung';
+            $this->fcmService->sendToUser($document->user, 'Dokumen Disetujui', "Dokumen {$docName} Anda telah disetujui.");
+        }
 
         
         \App\Services\AuditLogService::log('approve_document', $document, 'Admin approved worker document');
@@ -299,10 +302,12 @@ class AdminWorkerController extends Controller
             'reviewed_by'   => auth()->id(),
             'reviewed_at'   => now(),
         ]);
-
         $this->workerStatus->onDocumentRejected($document);
         $this->workerStatus->logVerification($document, 'document', 'rejected', $request->note);
-        $this->fcmService->sendToUser($document->user, 'Dokumen Ditolak', "Dokumen {$document->documentType->document_type_name} Anda ditolak. Alasan: {$request->note}");
+        if ($document->user) {
+            $docName = $document->documentType?->document_type_name ?? 'Pendukung';
+            $this->fcmService?->sendToUser($document->user, 'Dokumen Ditolak', "Dokumen {$docName} Anda ditolak. Alasan: {$request->note}");
+        }
 
         
         \App\Services\AuditLogService::log('reject_document', $document, 'Admin rejected worker document with note: ' . $request->note);
@@ -346,7 +351,7 @@ class AdminWorkerController extends Controller
                 $user, 'worker', 'manual_override',
                 $request->note ?? 'Manual override by admin'
             );
-            $this->fcmService->sendToUser($user, 'Status Diperbarui', 'Status kesiapan kerja atau lencana verifikasi Anda telah diperbarui oleh admin.');
+            $this->fcmService?->sendToUser($user, 'Status Diperbarui', 'Status kesiapan kerja atau lencana verifikasi Anda telah diperbarui oleh admin.');
         }
 
         
@@ -393,9 +398,9 @@ class AdminWorkerController extends Controller
                 'verification_status'       => 'basic_verified',
             ]);
             $this->workerStatus->logVerification($employer, 'employer', 'approved', 'All documents approved — badge granted');
-            $this->fcmService->sendToUser($employer, 'Akun Terverifikasi', 'Selamat! Akun perusahaan/majikan Anda telah terverifikasi penuh.');
+            $this->fcmService?->sendToUser($employer, 'Akun Terverifikasi', 'Selamat! Akun perusahaan/majikan Anda telah terverifikasi penuh.');
         } else {
-            $this->fcmService->sendToUser($employer, 'Dokumen Disetujui', 'Salah satu dokumen Anda telah disetujui.');
+            $this->fcmService?->sendToUser($employer, 'Dokumen Disetujui', 'Salah satu dokumen Anda telah disetujui.');
         }
 
         if ($request->expectsJson() || $request->is('api/*')) {
