@@ -149,9 +149,25 @@ class WorkerDirectoryController extends Controller
             ], 404);
         }
 
+        // ── UAT #23: CV Privacy Guard ────────────────────────────────────────
+        // Employer can only see cv_url if worker has applied to at least one
+        // of their jobs (active or past applications).
+        $hasApplied = \App\Models\JobApplication::where('user_id', $worker->id)
+            ->whereHas('job', fn($q) => $q->where('employer_id', $employer->id))
+            ->exists();
+
+        $profile = $worker->toPublicProfileArray();
+        if (! $hasApplied) {
+            // Remove CV URL for workers who haven't applied to this employer
+            unset($profile['cv_url']);
+            $profile['cv_access'] = 'restricted'; // hint for frontend
+        } else {
+            $profile['cv_access'] = 'granted';
+        }
+
         return response()->json([
             'success' => true,
-            'data'    => $worker->toPublicProfileArray(),
+            'data'    => $profile,
         ]);
     }
 }

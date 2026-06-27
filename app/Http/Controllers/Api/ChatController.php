@@ -452,6 +452,27 @@ class ChatController extends Controller
         $targetLang = $langMap[strtolower($targetLang)] ?? $targetLang;
 
         $translationService = app(\App\Services\TranslationService::class);
+
+        // ── UAT #28: Skip translation if source == target language ────────────
+        $sourceLangHint = $request->input('source_lang') ?? null;
+        if ($sourceLangHint) {
+            $normalizedSource = $langMap[strtolower($sourceLangHint)] ?? strtolower($sourceLangHint);
+            $normalizedTarget = $langMap[strtolower($targetLang)] ?? strtolower($targetLang);
+            if ($normalizedSource === $normalizedTarget) {
+                return response()->json([
+                    'success'       => true,
+                    'data'          => [
+                        'message_id'        => (string) $message->id,
+                        'original_text'     => $text,
+                        'translated_text'   => $text,
+                        'detected_language' => $normalizedSource,
+                        'target_language'   => $targetLang,
+                        'skipped'           => true, // same language, no API call
+                    ]
+                ]);
+            }
+        }
+
         $translated = $translationService->translate($text, $targetLang);
 
         if ($translated && isset($translated['text'])) {
@@ -486,11 +507,19 @@ class ChatController extends Controller
             ]);
         }
 
+        // ── UAT #29: Translation timeout / failure — return original text ──────
+        // Quota was deducted; refund it since translation failed
+        if ($user->translation_quota !== null) {
+            $user->increment('translation_quota');
+        }
+
         return response()->json([
-            'success' => false,
-            'error' => 'translation_failed',
-            'message' => 'Translation service failed.',
-        ], 502);
+            'success'       => false,
+            'error'         => 'translation_failed',
+            'message'       => 'Translation service is temporarily unavailable. Please retry.',
+            'original_text' => $text, // allow client to show original as fallback
+            'retry_allowed' => true,
+        ], 503);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
