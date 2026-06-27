@@ -328,6 +328,7 @@ class AdminWorkerController extends Controller
         $request->validate([
             'verified_badge_status' => 'nullable|in:unverified,pending,verified,rejected',
             'ready_to_work_status'  => 'nullable|in:not_ready,pending,ready,rejected',
+            'current_work_status'   => 'nullable|in:blue_collar,white_collar,not_sure', // UAT #46
             'note'                  => 'nullable|string|max:500',
         ]);
 
@@ -345,6 +346,10 @@ class AdminWorkerController extends Controller
             $updates['ready_to_work_status']     = $request->ready_to_work_status;
             $updates['ready_to_work_updated_at'] = now();
         }
+        // ── UAT #46: Admin force override current_work_status ───────────────
+        if ($request->filled('current_work_status')) {
+            $updates['current_work_status'] = $request->current_work_status;
+        }
 
         if ($updates) {
             $user->update($updates);
@@ -352,14 +357,13 @@ class AdminWorkerController extends Controller
                 $user, 'worker', 'manual_override',
                 $request->note ?? 'Manual override by admin'
             );
-            $this->fcmService?->sendToUser($user, 'Status Diperbarui', 'Status kesiapan kerja atau lencana verifikasi Anda telah diperbarui oleh admin.');
+            $this->fcmService?->sendToUser($user, 'Status Diperbarui', 'Status profil Anda telah diperbarui oleh admin.');
         }
 
-        
-        \App\Services\AuditLogService::log('override_badge', $user, 'Admin overrode verified badge to ' . $request->status);
+        \App\Services\AuditLogService::log('override_badge', $user, 'Admin overrode worker status: ' . json_encode($updates));
         return response()->json([
             'success' => true,
-            'message' => 'Badge status overridden.',
+            'message' => 'Worker status overridden.',
             'data'    => $user->fresh()->toApiArray(),
         ]);
     }
