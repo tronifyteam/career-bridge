@@ -25,9 +25,6 @@ class TranslationService
         try {
             $response = Http::withToken($apiKey)
                 ->timeout(25)
-                ->withOptions([
-                    'proxy' => 'socks5h://127.0.0.1:9050'
-                ])
                 ->post('https://api.openai.com/v1/chat/completions', [
                     'model' => 'gpt-3.5-turbo',
                     'messages' => [

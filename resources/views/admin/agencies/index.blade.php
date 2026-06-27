@@ -1,12 +1,12 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Employer Verification')
+@section('title', 'Agency Verification')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="mb-1 fw-bold"><i class="bi bi-building-check me-2 text-success"></i>Employer Verification</h4>
-        <p class="text-muted mb-0">Manage employer accounts — Company, Factory, Family Care & Agency</p>
+        <h4 class="mb-1 fw-bold"><i class="bi bi-diagram-3 me-2 text-success"></i>Agency Verification</h4>
+        <p class="text-muted mb-0">Manage agency accounts and their staff</p>
     </div>
 </div>
 
@@ -14,20 +14,19 @@
 <div class="row g-3 mb-4">
     @php
         $byType = [
-            'company'     => ['icon' => 'bi-building',        'color' => 'primary',   'label' => 'Company'],
-            'factory'     => ['icon' => 'bi-gear-fill',        'color' => 'warning',   'label' => 'Factory'],
-            'family_care' => ['icon' => 'bi-house-heart-fill', 'color' => 'danger',    'label' => 'Family Care'],
+            'agency'       => ['icon' => 'bi-diagram-3',       'color' => 'primary',   'label' => 'Main Agency'],
+            'agency_staff' => ['icon' => 'bi-person-badge',    'color' => 'secondary', 'label' => 'Agency Staff'],
         ];
     @endphp
     @foreach($byType as $type => $meta)
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stat-card d-flex align-items-center gap-3">
             <div class="stat-icon bg-{{ $meta['color'] }} bg-opacity-15 text-{{ $meta['color'] }}">
                 <i class="bi {{ $meta['icon'] }}"></i>
             </div>
             <div>
                 <div class="stat-value" style="font-size:1.5rem;">
-                    {{ $employers->filter(fn($e) => $e->role === $type)->count() }}
+                    {{ $agencies->filter(fn($e) => $e->role === $type)->count() }}
                 </div>
                 <div class="stat-label">{{ $meta['label'] }}</div>
             </div>
@@ -42,20 +41,19 @@
         <i class="bi bi-funnel me-2"></i>Filters
     </div>
     <div class="p-3">
-        <form method="GET" action="{{ route('admin.employers.index') }}" class="row g-2 align-items-end">
+        <form method="GET" action="{{ route('admin.agencies.index') }}" class="row g-2 align-items-end">
             <div class="col-md-3">
                 <label class="form-label small">Search</label>
                 <input type="text" name="search" class="form-control"
-                       placeholder="Company name, email, number..."
+                       placeholder="Agency name, email, number..."
                        value="{{ request('search') }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label small">Employer Type</label>
+                <label class="form-label small">Role</label>
                 <select name="role" class="form-select">
-                    <option value="">All Types</option>
-                    <option value="company"     {{ request('role') == 'company'     ? 'selected' : '' }}>Company</option>
-                    <option value="factory"     {{ request('role') == 'factory'     ? 'selected' : '' }}>Factory</option>
-                    <option value="family_care" {{ request('role') == 'family_care' ? 'selected' : '' }}>Family Care</option>
+                    <option value="">All Roles</option>
+                    <option value="agency"       {{ request('role') == 'agency'       ? 'selected' : '' }}>Main Agency</option>
+                    <option value="agency_staff" {{ request('role') == 'agency_staff' ? 'selected' : '' }}>Agency Staff</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -84,25 +82,25 @@
                 <button type="submit" class="btn btn-primary w-100">Filter</button>
             </div>
             <div class="col-md-2">
-                <a href="{{ route('admin.employers.index') }}" class="btn btn-outline-secondary w-100">Reset</a>
+                <a href="{{ route('admin.agencies.index') }}" class="btn btn-outline-secondary w-100">Reset</a>
             </div>
         </form>
     </div>
 </div>
 
-{{-- Employers Table --}}
+{{-- Agencies Table --}}
 <div class="card-custom">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-table me-2"></i>Employers List</span>
-        <small class="text-muted">{{ $employers->total() }} total · Page {{ $employers->currentPage() }} of {{ $employers->lastPage() }}</small>
+        <span><i class="bi bi-table me-2"></i>Agencies & Staff List</span>
+        <small class="text-muted">{{ $agencies->total() }} total · Page {{ $agencies->currentPage() }} of {{ $agencies->lastPage() }}</small>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Employer</th>
-                    <th>Type</th>
+                    <th>Account</th>
+                    <th>Role</th>
                     <th>Company / Info</th>
                     <th>Verification</th>
                     <th>Verified Badge</th>
@@ -113,45 +111,42 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($employers as $employer)
+                @forelse($agencies as $agency)
                 <tr>
-                    <td class="text-muted small">{{ $employer->id }}</td>
+                    <td class="text-muted small">{{ $agency->id }}</td>
                     <td>
-                        <div class="fw-semibold">{{ $employer->full_name ?? $employer->name }}</div>
-                        <small class="text-muted">{{ $employer->email }}</small>
+                        <div class="fw-semibold">{{ $agency->full_name ?? $agency->name }}</div>
+                        <small class="text-muted">{{ $agency->email }}</small>
                     </td>
                     <td>
                         @php
                             $roleColors = [
-                                'company'     => 'primary',
-                                'factory'     => 'warning',
-                                'family_care' => 'danger',
                                 'agency'      => 'info',
                                 'agency_staff'=> 'secondary',
                             ];
-                            $roleColor = $roleColors[$employer->role] ?? 'secondary';
+                            $roleColor = $roleColors[$agency->role] ?? 'secondary';
                         @endphp
                         <span class="badge bg-{{ $roleColor }}-subtle text-{{ $roleColor }} border border-{{ $roleColor }}-subtle">
-                            {{ str_replace('_', ' ', ucfirst($employer->role ?? '—')) }}
+                            {{ str_replace('_', ' ', ucfirst($agency->role ?? '—')) }}
                         </span>
                     </td>
                     <td class="small">
-                        <div>{{ $employer->company_name ?? '—' }}</div>
-                        @if($employer->unified_business_number)
-                        <small class="text-muted">UBN: {{ $employer->unified_business_number }}</small>
+                        <div>{{ $agency->company_name ?? '—' }}</div>
+                        @if($agency->unified_business_number)
+                        <small class="text-muted">UBN: {{ $agency->unified_business_number }}</small>
                         @endif
-                        @if($employer->license_number)
-                        <small class="text-muted">Lic: {{ $employer->license_number }}</small>
+                        @if($agency->license_number)
+                        <small class="text-muted">Lic: {{ $agency->license_number }}</small>
                         @endif
                     </td>
                     <td>
-                        @php $vs = $employer->verification_status ?? 'unverified'; @endphp
+                        @php $vs = $agency->verification_status ?? 'unverified'; @endphp
                         <span class="badge badge-role badge-status-{{ $vs }}">
                             {{ str_replace('_', ' ', ucfirst($vs)) }}
                         </span>
                     </td>
                     <td>
-                        @php $badge = $employer->verified_badge_status ?? 'unverified'; @endphp
+                        @php $badge = $agency->verified_badge_status ?? 'unverified'; @endphp
                         <span class="badge badge-role badge-status-{{ $badge }}">
                             @if($badge === 'verified') <i class="bi bi-patch-check-fill me-1"></i>
                             @elseif($badge === 'pending') <i class="bi bi-hourglass-split me-1"></i>
@@ -161,9 +156,9 @@
                         </span>
                     </td>
                     <td>
-                        @php $docCount = $employer->documents->count(); @endphp
+                        @php $docCount = $agency->documents->count(); @endphp
                         @if($docCount > 0)
-                            @php $pendingDocs = $employer->documents->filter(fn($d) => ($d->status ?? 'pending') === 'pending')->count(); @endphp
+                            @php $pendingDocs = $agency->documents->filter(fn($d) => ($d->status ?? 'pending') === 'pending')->count(); @endphp
                             <span class="badge {{ $pendingDocs > 0 ? 'bg-warning text-dark' : 'bg-success-subtle text-success border border-success-subtle' }}">
                                 <i class="bi bi-file-earmark me-1"></i>{{ $docCount }} doc{{ $docCount > 1 ? 's' : '' }}
                                 @if($pendingDocs > 0)
@@ -175,16 +170,16 @@
                         @endif
                     </td>
                     <td class="small text-center">
-                        @php $jobCount = $employer->jobs_count ?? 0; @endphp
+                        @php $jobCount = $agency->jobs_count ?? 0; @endphp
                         @if($jobCount > 0)
                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ $jobCount }}</span>
                         @else
                             <span class="text-muted">0</span>
                         @endif
                     </td>
-                    <td class="small text-muted">{{ $employer->created_at?->format('M d, Y') }}</td>
+                    <td class="small text-muted">{{ $agency->created_at?->format('M d, Y') }}</td>
                     <td>
-                        <a href="{{ route('admin.employers.show', $employer) }}" class="btn btn-sm btn-success">
+                        <a href="{{ route('admin.agencies.show', $agency) }}" class="btn btn-sm btn-success">
                             <i class="bi bi-shield-check me-1"></i>Review
                         </a>
                     </td>
@@ -192,17 +187,17 @@
                 @empty
                 <tr>
                     <td colspan="10" class="text-center text-muted py-5">
-                        <i class="bi bi-building display-6 d-block mb-2 opacity-25"></i>
-                        No employers found
+                        <i class="bi bi-diagram-3 display-6 d-block mb-2 opacity-25"></i>
+                        No agencies found
                     </td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-    @if($employers->hasPages())
+    @if($agencies->hasPages())
     <div class="p-3 border-top">
-        {{ $employers->appends(request()->query())->links() }}
+        {{ $agencies->appends(request()->query())->links() }}
     </div>
     @endif
 </div>

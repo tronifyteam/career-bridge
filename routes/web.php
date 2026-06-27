@@ -65,6 +65,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/{user}/suspend',                            [AdminWorkerController::class, 'suspendEmployer'])->name('suspend');
     });
 
+    // Agency Management
+    Route::prefix('agencies')->name('agencies.')->group(function () {
+        Route::get('/',                                          [\App\Http\Controllers\Admin\AdminAgencyController::class, 'index'])->name('index');
+        Route::get('/{user}',                                    [\App\Http\Controllers\Admin\AdminAgencyController::class, 'show'])->name('show');
+        Route::put('/documents/{document}/approve',              [AdminWorkerController::class, 'approveEmployerDocument'])->name('approveDocument');
+        Route::put('/documents/{document}/reject',               [AdminWorkerController::class, 'rejectEmployerDocument'])->name('rejectDocument');
+        Route::put('/{user}/approve',                            [AdminWorkerController::class, 'approveEmployer'])->name('approve');
+        Route::put('/{user}/reject',                             [AdminWorkerController::class, 'rejectEmployer'])->name('reject');
+        Route::put('/{user}/suspend',                            [AdminWorkerController::class, 'suspendEmployer'])->name('suspend');
+    });
+
     // Jobs
     Route::get('/jobs', [AdminJobController::class, 'index'])->name('jobs.index');
     Route::get('/jobs/{job}', [AdminJobController::class, 'show'])->name('jobs.show');

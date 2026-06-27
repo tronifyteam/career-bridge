@@ -38,6 +38,7 @@ class AdminWorkerController extends Controller
     public function employerIndex(Request $request)
     {
         $query = User::employers()
+            ->whereNotIn('role', ['agency', 'agency_staff'])
             ->with(['documents'])
             ->withCount('jobs')
             ->orderByDesc('created_at');

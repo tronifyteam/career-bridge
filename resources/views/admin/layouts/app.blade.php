@@ -123,10 +123,23 @@
             <a href="{{ route('admin.employers.index') }}" class="nav-link {{ request()->routeIs('admin.employers.*') ? 'active' : '' }}">
                 <i class="bi bi-building-check"></i> Employers
                 @php
-                    $pendingEmployers = \App\Models\EmployerDocument::where('status','pending')->count();
+                    $pendingEmployers = \App\Models\EmployerDocument::whereHas('user', function($q) {
+                        $q->whereNotIn('role', ['agency', 'agency_staff']);
+                    })->where('status','pending')->count();
                 @endphp
                 @if($pendingEmployers > 0)
                     <span class="badge bg-danger ms-auto">{{ $pendingEmployers }}</span>
+                @endif
+            </a>
+            <a href="{{ route('admin.agencies.index') }}" class="nav-link {{ request()->routeIs('admin.agencies.*') ? 'active' : '' }}">
+                <i class="bi bi-diagram-3"></i> Agencies
+                @php
+                    $pendingAgencies = \App\Models\EmployerDocument::whereHas('user', function($q) {
+                        $q->whereIn('role', ['agency', 'agency_staff']);
+                    })->where('status','pending')->count();
+                @endphp
+                @if($pendingAgencies > 0)
+                    <span class="badge bg-danger ms-auto">{{ $pendingAgencies }}</span>
                 @endif
             </a>
             <a href="{{ route('admin.jobs.index') }}" class="nav-link {{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}">
