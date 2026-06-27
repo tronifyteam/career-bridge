@@ -334,6 +334,16 @@ class WorkerStatusService
                 'worker_document_id' => $document->id,
             ]);
 
+        // Special case: open_work_permit approval removes sponsorship requirement
+        $docSlug = $document->documentType?->slug;
+        if ($docSlug === 'open_work_permit') {
+            $worker->update([
+                'open_work_right_status' => 'approved',
+                'sponsorship_required'   => false,
+            ]);
+            return; // no need to re-evaluate ready_to_work for this doc type
+        }
+
         // Re-evaluate Verified Badge first (in case it was personal_id)
         $this->evaluateVerifiedBadge($worker->fresh());
 
@@ -350,6 +360,13 @@ class WorkerStatusService
             ->update(['upload_status' => 'rejected']);
 
         $worker = $document->user;
+
+        // Special case: open_work_permit rejection resets open_work_right_status
+        $docSlug = $document->documentType?->slug;
+        if ($docSlug === 'open_work_permit') {
+            $worker->update(['open_work_right_status' => 'rejected']);
+            return;
+        }
 
         // Re-evaluate Verified Badge first (in case it was personal_id)
         $this->evaluateVerifiedBadge($worker->fresh());

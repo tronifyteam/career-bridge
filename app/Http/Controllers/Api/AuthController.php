@@ -617,7 +617,18 @@ class AuthController extends Controller
             $user->expected_salary = $validated['expected_salary'];
         }
         if (array_key_exists('sponsorship_required', $validated)) {
-            $user->sponsorship_required = $validated['sponsorship_required'];
+            $newSponsorshipValue = (bool) $validated['sponsorship_required'];
+            // Guard: worker cannot self-remove sponsorship requirement without admin-approved open work permit
+            if ($newSponsorshipValue === false && $user->isWorker()) {
+                if ($user->open_work_right_status !== 'approved') {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'open_work_right_not_approved',
+                        'message' => 'Upload and receive admin approval for your Open Work Permit (APRC / Gold Card) before removing the sponsorship requirement.',
+                    ], 403);
+                }
+            }
+            $user->sponsorship_required = $newSponsorshipValue;
             $workerTypeOrSponsorshipChanged = true;
         }
         if (array_key_exists('employer_self_check_required', $validated)) {
@@ -908,7 +919,7 @@ class AuthController extends Controller
 
         $request->validate([
             'document' => 'required|file|mimes:pdf,jpg,png,jpeg|max:102400',
-            'document_type' => 'required|string|in:selfie,student_work_permit,transfer_document,contract_ending_proof,personal_document',
+            'document_type' => 'required|string|in:selfie,student_work_permit,transfer_document,contract_ending_proof,personal_document,open_work_permit',
         ]);
 
         if ($request->hasFile('document')) {
@@ -918,16 +929,23 @@ class AuthController extends Controller
 
             $url = asset('storage/' . $path);
 
+            // Resolve document_type_id from slug
+            $docType = \App\Models\DocumentType::where('slug', $request->document_type)->first();
+
             $document = WorkerDocument::create([
-                'user_id' => $user->id,
-                'document_type' => $request->document_type,
-                'document_url' => $url,
-                'status' => 'pending',
+                'user_id'           => $user->id,
+                'document_type_id'  => $docType?->id,
+                'file_url'          => $url,
+                'original_filename' => $file->getClientOriginalName(),
+                'review_status'     => 'pending',
             ]);
 
-            // Update user status
+            // Update user status based on document type
             if (in_array($request->document_type, ['selfie', 'personal_document'])) {
                 $user->update(['verified_badge_status' => 'pending']);
+            } elseif ($request->document_type === 'open_work_permit') {
+                // Open work right claim — pending admin review
+                $user->update(['open_work_right_status' => 'pending']);
             } else {
                 $user->update(['ready_to_work_status' => 'pending']);
             }

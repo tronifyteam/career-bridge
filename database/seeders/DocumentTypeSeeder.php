@@ -139,6 +139,17 @@ class DocumentTypeSeeder extends Seeder
                 'required_for_ready_to_work'  => false,
                 'verification_required'       => true,
             ],
+            // ================= WHITE COLLAR — OPEN WORK RIGHT =================
+            [
+                'document_type_name'          => 'Open Work Permit / APRC / Gold Card',
+                'slug'                        => 'open_work_permit',
+                'description'                 => 'Proof of independent work authorization for white collar workers: APRC card, Gold Card, or equivalent. Upload this to remove the sponsorship requirement from your profile.',
+                'worker_type_id'              => null, // mapped below to white_collar
+                'required_for_verified_badge' => false,
+                'required_for_ready_to_work'  => false,
+                'verification_required'       => true,
+            ],
+
         ];
 
         // Map slugs to worker_type_ids
@@ -158,6 +169,7 @@ class DocumentTypeSeeder extends Seeder
             
             'work_permit'           => $whiteCollarType?->id,
             'diploma'               => $whiteCollarType?->id,
+            'open_work_permit'      => $whiteCollarType?->id,
             
             'national_id'           => $taiwaneseType?->id,
             
