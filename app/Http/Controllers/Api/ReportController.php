@@ -102,6 +102,49 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/reports/violations-against-me
+     *
+     * UAT #80: Worker can see their own violation history —
+     * reports filed against them by others (employers/workers).
+     * Only shows resolved/actioned reports (not pending ones to avoid gaming).
+     */
+    public function violationHistory(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $reports = Report::where('reported_id', $user->id)
+            ->whereIn('status', ['resolved', 'invalid', 'reviewing'])
+            ->with(['job'])
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $reports->map(fn($r) => [
+                'id'          => (string) $r->id,
+                'reason'      => $r->reason,
+                'description' => $r->description,
+                'report_type' => $r->report_type,
+                'severity'    => $r->severity,
+                'status'      => $r->status,
+                'admin_note'  => $r->status === 'invalid' ? $r->admin_note : null, // only show note if invalid
+                'reported_at' => $r->created_at->toIso8601String(),
+                'resolved_at' => $r->resolved_at?->toIso8601String(),
+                // For job-related violations
+                'job' => $r->job_id ? [
+                    'id'    => (string) $r->job_id,
+                    'title' => $r->job->title ?? 'Unknown Job',
+                ] : null,
+            ])->values(),
+            'meta' => [
+                'current_page' => $reports->currentPage(),
+                'last_page'    => $reports->lastPage(),
+                'total'        => $reports->total(),
+            ],
+        ]);
+    }
+
     // ── Private Helpers ────────────────────────────────────────────────────
 
     private function handleJobReportAutoAction(int $jobId, string $severity): void

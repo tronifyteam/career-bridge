@@ -256,8 +256,9 @@ Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
 
 // ── Reports & Trust System ────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->prefix('reports')->group(function () {
-    Route::post('/',   [\App\Http\Controllers\Api\ReportController::class, 'store']);
-    Route::get('/my',  [\App\Http\Controllers\Api\ReportController::class, 'myReports']);
+    Route::post('/',                         [\App\Http\Controllers\Api\ReportController::class, 'store']);
+    Route::get('/my',                        [\App\Http\Controllers\Api\ReportController::class, 'myReports']);
+    Route::get('/violations-against-me',     [\App\Http\Controllers\Api\ReportController::class, 'violationHistory']); // UAT #80
 });
 
 // ── UAT #79: Admin Report Management ──────────────────────────────────────
