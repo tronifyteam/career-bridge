@@ -206,11 +206,16 @@ class JobController extends Controller
                 }
             }
 
-            if ($maxSalary < 40000 && ($isHidden || empty($matches[0]))) {
+            // UAT #18: NTS minimum wage enforcement - block hidden salary
+            if ($isHidden || empty($matches[0])) {
+                return response()->json(['success'=>false,'error'=>'salary_hidden_not_allowed','message'=>'Cantumkan gaji eksplisit minimal NT$40,000/bulan. Gaji Nego/Negotiable tidak diperbolehkan.'], 422);
+            }
+            // Block salary below NT$40,000/month
+            if ($maxSalary < 40000) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'invalid_salary_hidden',
-                    'message' => 'Menurut hukum Taiwan (UU Layanan Ketenagakerjaan Pasal 5), Anda harus mencantumkan kisaran gaji secara eksplisit jika gaji di bawah NT$40.000/bulan.',
+                    'error'   => 'salary_below_minimum',
+                    'message' => "Gaji NT\${$maxSalary} di bawah minimum platform NT\$40,000/bulan.",
                 ], 422);
             }
         }

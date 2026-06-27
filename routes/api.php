@@ -260,6 +260,13 @@ Route::middleware('auth:sanctum')->prefix('reports')->group(function () {
     Route::get('/my',  [\App\Http\Controllers\Api\ReportController::class, 'myReports']);
 });
 
+// ── UAT #79: Admin Report Management ──────────────────────────────────────
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin/reports')->group(function () {
+    Route::get('/',                    [\App\Http\Controllers\Api\AdminReportController::class, 'index']);
+    Route::post('/{id}/invalidate',    [\App\Http\Controllers\Api\AdminReportController::class, 'invalidate']);
+    Route::post('/{id}/resolve',       [\App\Http\Controllers\Api\AdminReportController::class, 'resolve']);
+});
+
 // ── AI Safety Checker ──────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->prefix('ai')->group(function () {
     Route::post('/safety-check/job/{jobId}', [\App\Http\Controllers\Api\SafetyCheckerController::class, 'checkJob']);
