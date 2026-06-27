@@ -754,7 +754,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         $request->validate([
-            'cv' => 'required|file|mimes:pdf|max:102400', // PDF up to 100MB
+            'cv' => 'required|file|mimes:pdf|max:15360', // PDF up to 15MB (UAT #44)
         ]);
 
         if ($request->hasFile('cv')) {

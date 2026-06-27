@@ -181,14 +181,31 @@ class Job extends Model
 
     // ── API Serialization ─────────────────────────────────
 
-    public function toApiArray(): array
+    /**
+     * Returns the job data for API responses.
+     * For Family Care employers, sensitive fields (employer name, exact address)
+     * are masked to protect household privacy (UAT #17).
+     *
+     * @param  bool $isOwner  Pass true only when the authenticated user is the employer (no masking).
+     */
+    public function toApiArray(bool $isOwner = false): array
     {
+        $isFamilyCare = strtolower($this->employer_type ?? '') === 'family';
+        $shouldMask   = $isFamilyCare && ! $isOwner;
+
+        // For family care jobs, show only the district/city level for location
+        $maskedLocation = $shouldMask
+            ? collect(explode(',', $this->location ?? ''))->last(null, $this->location) // last comma segment
+            : $this->location;
+
         return [
             'id'                   => (string) $this->id,
             'title'                => $this->title,
-            'employer_name'        => $this->employer_name,
+            // UAT #17 — mask employer name for family care jobs
+            'employer_name'        => $shouldMask ? 'Family Employer (Private)' : $this->employer_name,
             'employer_type'        => $this->employer_type,
-            'location'             => $this->location,
+            // UAT #17 — show only district/city for family care
+            'location'             => trim($maskedLocation ?? $this->location ?? ''),
             'salary'               => $this->salary,
             'salary_period'        => $this->salary_period,
             'employment_type'      => $this->employment_type,
@@ -198,6 +215,7 @@ class Job extends Model
             'dormitory_meals_deductions' => $this->dormitory_meals_deductions,
             'contact_method'       => $this->contact_method,
             'mask_contact_info'    => $this->mask_contact_info,
+            'is_masked'            => $shouldMask, // frontend can show warning badge
             'tags'                 => $this->tags ?? [],
             'category'             => $this->category,
             'job_type_id'          => $this->job_type_id,

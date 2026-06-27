@@ -47,7 +47,8 @@ Route::get('/industries', [\App\Http\Controllers\Api\MasterDataController::class
 Route::get('/nationalities', [\App\Http\Controllers\Api\MasterDataController::class, 'nationalities']);
 
 // ── Authentication ────────────────────────────────────────────────────────
-Route::prefix('auth')->group(function () {
+// Rate limit: 5 attempts per minute per IP for login (brute force protection)
+Route::middleware('throttle:5,1')->prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login',    [AuthController::class, 'login']);
     Route::post('/google',   [AuthController::class, 'googleLogin']);
@@ -174,6 +175,8 @@ Route::middleware('auth:sanctum')->prefix('applications')->group(function () {
     Route::get('/',            [JobApplicationController::class, 'myApplications']);
     Route::get('/employer',    [JobApplicationController::class, 'employerApplications']);
     Route::put('/{id}/status', [JobApplicationController::class, 'updateStatus']);
+    // Worker: withdraw own application (UAT #68)
+    Route::delete('/{id}',     [JobApplicationController::class, 'withdraw']);
 });
 
 // ── Chat ──────────────────────────────────────────────────────────────────

@@ -300,4 +300,43 @@ class JobApplicationController extends Controller
             'data'    => $application->fresh()->load('job', 'user', 'statusSnapshot', 'statusLogs')->toApiArray(),
         ]);
     }
+
+    /**
+     * DELETE /api/applications/{id}
+     * Worker withdraws (cancels) their own application.
+     * Only allowed while status is: pending, viewed, shortlisted
+     * UAT #68
+     */
+    public function withdraw(Request $request, string $id): JsonResponse
+    {
+        $user        = $request->user();
+        $application = JobApplication::where('id', $id)
+                         ->where('user_id', $user->id)
+                         ->first();
+
+        if (! $application) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'not_found',
+                'message' => 'Application not found.',
+            ], 404);
+        }
+
+        // Cannot withdraw if already accepted / hired / rejected
+        $immutableStatuses = ['accepted', 'rejected', 'cancelled'];
+        if (in_array($application->status, $immutableStatuses)) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'invalid_state',
+                'message' => 'This application can no longer be withdrawn.',
+            ], 422);
+        }
+
+        $application->update(['status' => 'cancelled']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lamaran berhasil ditarik.',
+        ]);
+    }
 }

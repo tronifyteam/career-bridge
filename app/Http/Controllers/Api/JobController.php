@@ -86,7 +86,7 @@ class JobController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $job->toApiArray(),
+            'data' => $job->toApiArray(isOwner: true),
         ]);
     }
 
@@ -289,7 +289,7 @@ class JobController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
-            'data' => $job->toApiArray(),
+            'data' => $job->toApiArray(isOwner: true),
         ], 201);
     }
 
@@ -436,7 +436,7 @@ class JobController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $job->fresh()->toApiArray(),
+            'data' => $job->fresh()->toApiArray(isOwner: true),
         ]);
     }
 
@@ -508,7 +508,7 @@ class JobController extends Controller
         return response()->json([
             'success' => true,
             'message' => $newStatus === 'published' ? 'Job published.' : 'Job submitted for review.',
-            'data'    => $job->fresh()->toApiArray(),
+            'data'    => $job->fresh()->toApiArray(isOwner: true),
         ]);
     }
 
@@ -529,7 +529,7 @@ class JobController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Job paused.',
-            'data'    => $job->fresh()->toApiArray(),
+            'data'    => $job->fresh()->toApiArray(isOwner: true),
         ]);
     }
 
@@ -550,7 +550,7 @@ class JobController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Job closed.',
-            'data'    => $job->fresh()->toApiArray(),
+            'data'    => $job->fresh()->toApiArray(isOwner: true),
         ]);
     }
 
@@ -609,7 +609,7 @@ class JobController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Job duplicated as draft. You can edit and publish it.',
-            'data'    => $duplicate->toApiArray(),
+            'data'    => $duplicate->toApiArray(isOwner: true),
         ], 201);
     }
 
@@ -655,7 +655,7 @@ class JobController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => collect($jobs->items())->map->toApiArray()->values(),
+            'data' => collect($jobs->items())->map(fn($j) => $j->toApiArray(isOwner: true))->values(),
             'meta' => [
                 'current_page' => $jobs->currentPage(),
                 'last_page'    => $jobs->lastPage(),
@@ -665,3 +665,6 @@ class JobController extends Controller
         ]);
     }
 }
+
+
+
