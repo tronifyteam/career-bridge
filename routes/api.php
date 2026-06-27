@@ -299,4 +299,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     // User moderation
     Route::post('/users/{id}/suspend',      [AdminWorkerController::class, 'suspendUser']);
     Route::post('/users/{id}/restore',      [AdminWorkerController::class, 'restoreUser']);
+
+    // ── UAT #45 & #47: Audit Logs + CSV Export ─────────────────────────────
+    Route::get('/audit-logs',               [\App\Http\Controllers\Api\AdminAuditController::class, 'index']);
+    Route::get('/audit-logs/export',        [\App\Http\Controllers\Api\AdminAuditController::class, 'export']);
 });
