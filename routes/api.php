@@ -62,9 +62,6 @@ Route::middleware('throttle:5,1')->prefix('auth')->group(function () {
     Route::post('/reset-password',  [AuthController::class, 'resetPassword']);
 
     // Authenticated profile routes
-    // Advertisements (Public / Any User)
-Route::get('/ads/banners', [AdvertisementController::class, 'getBanners']);
-Route::post('/ads/{id}/click', [AdvertisementController::class, 'trackClick'])->middleware('throttle:10,1');
 
 Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me',              [AuthController::class, 'me']);
@@ -316,3 +313,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     // Sponsored Ads Management
     Route::put('/ads/{id}/pause',           [\App\Http\Controllers\Api\AdvertisementController::class, 'pause']);
 });
+
+// Advertisements (Public / Any User)
+Route::get('/ads/banners', [\App\Http\Controllers\Api\AdvertisementController::class, 'getBanners']);
+Route::post('/ads/{id}/click', [\App\Http\Controllers\Api\AdvertisementController::class, 'trackClick'])->middleware('throttle:10,1');
