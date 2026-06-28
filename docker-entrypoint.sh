@@ -12,7 +12,9 @@ php artisan view:cache || true
 # running migrations automatically on every instance startup can cause race conditions.
 # For simplicity in this blueprint, it's included, but normally you'd run this as a separate Cloud Build step.
 echo "Running database migrations..."
-# php artisan migrate --force || true
+php artisan migrate --force || true
+echo "Running database seeders..."
+php artisan db:seed --force || true
 
 # Pass control to the CMD (apache2-foreground)
 exec "$@"
