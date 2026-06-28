@@ -283,7 +283,7 @@ class WorkerDocumentController extends Controller
         // Set badge status to pending for admin review (Phase 1: Verified Badge)
         $user->update(['verified_badge_status' => 'pending']);
 
-        // Mock AI Verification for selfie/KTP
+        // AI Verification for selfie/KTP
         $selfieDoc = WorkerDocument::where('user_id', $user->id)
             ->whereHas('documentType', fn($q) => $q->where('slug', 'selfie'))
             ->first();
@@ -292,13 +292,34 @@ class WorkerDocumentController extends Controller
             ->whereHas('documentType', fn($q) => $q->where('slug', 'personal_id'))
             ->first();
 
-        if ($selfieDoc && $ktpDoc) {
-            $selfieDoc->update(['review_status' => 'approved']);
-            $ktpDoc->update(['review_status' => 'approved']);
-            $user->update(['verified_badge_status' => 'approved']);
-            
-            // Optionally log the auto-approval
-            \Illuminate\Support\Facades\Log::info("Auto-approved user {$user->id} Verified Badge via Mock AI Verification.");
+        if ($selfieDoc && $ktpDoc && ($selfieDoc->review_status === 'pending' || $ktpDoc->review_status === 'pending')) {
+            $aiService = new \App\Services\AiVerificationService();
+            $result = $aiService->verifyIdentity($selfieDoc->file_url, $ktpDoc->file_url);
+
+            if ($result) {
+                $isMatch = $result['is_match'] ?? false;
+                $isValidId = $result['is_valid_id'] ?? false;
+                $reason = $result['reason'] ?? 'AI Verification completed';
+                
+                if ($isMatch && $isValidId) {
+                    $selfieDoc->update(['review_status' => 'approved', 'rejection_reason' => null]);
+                    $ktpDoc->update(['review_status' => 'approved', 'rejection_reason' => null]);
+                    $user->update(['verified_badge_status' => 'approved']);
+                    $statusMsg = "AI Auto-Approved: {$reason}";
+                } else {
+                    $selfieDoc->update(['review_status' => 'rejected', 'rejection_reason' => $reason]);
+                    $ktpDoc->update(['review_status' => 'rejected', 'rejection_reason' => $reason]);
+                    $user->update(['verified_badge_status' => 'rejected']);
+                    $statusMsg = "AI Auto-Rejected: {$reason}";
+                }
+
+                \Illuminate\Support\Facades\Log::info("User {$user->id} Verified Badge processed via AI: {$statusMsg}");
+                \App\Services\AuditLogService::log(
+                    action: 'ai_verification',
+                    model: $user,
+                    description: $statusMsg
+                );
+            }
         }
 
         // Advance onboarding step

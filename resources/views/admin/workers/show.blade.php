@@ -149,6 +149,9 @@
                 @endif
             </div>
         </div>
+
+        {{-- Change Password --}}
+        @include('admin.users.partials.change_password')
     </div>
 
     {{-- ── RIGHT COLUMN: Selfie + Documents + Logs ──────────────────── --}}

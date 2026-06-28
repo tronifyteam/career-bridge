@@ -160,6 +160,9 @@
             </div>
         </div>
 
+        {{-- Change Password --}}
+        @include('admin.users.partials.change_password', ['user' => $employer])
+
         {{-- Jobs Summary --}}
         @php $recentJobs = $employer->jobs()->latest()->take(5)->get(); @endphp
         @if($recentJobs->isNotEmpty())

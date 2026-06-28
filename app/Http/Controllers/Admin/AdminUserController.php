@@ -47,6 +47,19 @@ class AdminUserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User deleted successfully.');
     }
 
+    public function updatePassword(Request $request, User $user)
+    {
+        $request->validate([
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user->update([
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+        ]);
+
+        return redirect()->back()->with('success', 'User password updated successfully.');
+    }
+
     public function updateVerification(Request $request, User $user)
     {
         $request->validate([

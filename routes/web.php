@@ -37,6 +37,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Users
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
     Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+    Route::put('/users/{user}/password', [AdminUserController::class, 'updatePassword'])->name('users.updatePassword');
     Route::put('/users/{user}/verification', [AdminUserController::class, 'updateVerification'])->name('users.updateVerification');
     Route::put('/users/{user}/worker-verification', [AdminUserController::class, 'updateWorkerVerification'])->name('users.updateWorkerVerification');
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');

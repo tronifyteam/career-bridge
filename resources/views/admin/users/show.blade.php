@@ -138,6 +138,9 @@
             </form>
         </div>
         @endif
+
+        {{-- Change Password --}}
+        @include('admin.users.partials.change_password')
     </div>
 
     <div class="col-md-8">
