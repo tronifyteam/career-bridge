@@ -157,7 +157,7 @@ class JobController extends Controller
             'dormitory_meals_deductions' => 'nullable|string',
             'contact_method'       => 'required|string',
             'mask_contact_info'    => 'nullable|boolean',
-            'employer_authorization_url' => 'nullable|string|max:500',
+            'employer_authorization_url' => $user->role === 'agency' ? 'required|string|max:500' : 'nullable|string|max:500',
             'job_source_proof_url'       => 'nullable|string|max:500',
             'fee_table_url'              => 'nullable|string|max:500',
         ]);
@@ -348,7 +348,7 @@ class JobController extends Controller
             'dormitory_meals_deductions' => 'nullable|string',
             'contact_method'       => 'sometimes|required|string',
             'mask_contact_info'    => 'nullable|boolean',
-            'employer_authorization_url' => 'nullable|string|max:500',
+            'employer_authorization_url' => $user->role === 'agency' ? 'required|string|max:500' : 'nullable|string|max:500',
             'job_source_proof_url'       => 'nullable|string|max:500',
             'fee_table_url'              => 'nullable|string|max:500',
         ]);

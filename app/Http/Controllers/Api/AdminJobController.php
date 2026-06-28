@@ -61,6 +61,13 @@ class AdminJobController extends Controller
                          ($validated['rejection_reason'] ? " with reason: {$validated['rejection_reason']}" : "")
         );
 
+        if ($validated['status'] === 'rejected') {
+            $employer = \App\Models\User::find($job->employer_id);
+            if ($employer) {
+                $employer->increment('credit_balance', 1);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => "Job status updated to {$validated['status']}.",

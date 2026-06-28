@@ -137,8 +137,9 @@ Route::middleware('auth:sanctum')->prefix('employer/staff')->group(function () {
 
 // ── Worker Directory (Employer Browse Workers) ────────────────────────────
 Route::middleware('auth:sanctum')->prefix('workers')->group(function () {
-    Route::get('/',     [WorkerDirectoryController::class, 'index']);
-    Route::get('/{id}', [WorkerDirectoryController::class, 'show']);
+    Route::get('/',            [WorkerDirectoryController::class, 'index']);
+    Route::get('/{id}',        [WorkerDirectoryController::class, 'show']);
+    Route::post('/{id}/cv/log-download', [WorkerDirectoryController::class, 'logCvDownload']);
 });
 
 // ── Job Listings ──────────────────────────────────────────────────────────
@@ -311,4 +312,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     // ── UAT #45 & #47: Audit Logs + CSV Export ─────────────────────────────
     Route::get('/audit-logs',               [\App\Http\Controllers\Api\AdminAuditController::class, 'index']);
     Route::get('/audit-logs/export',        [\App\Http\Controllers\Api\AdminAuditController::class, 'export']);
+
+    // Sponsored Ads Management
+    Route::put('/ads/{id}/pause',           [\App\Http\Controllers\Api\AdvertisementController::class, 'pause']);
 });

@@ -170,4 +170,49 @@ class WorkerDirectoryController extends Controller
             'data'    => $profile,
         ]);
     }
+
+    /**
+     * POST /api/workers/{id}/cv/log-download
+     * Log CV download action by employer.
+     */
+    public function logCvDownload(Request $request, string $id): JsonResponse
+    {
+        $employer = $request->user();
+        $worker = User::workers()->find($id);
+
+        if (! $worker) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Worker not found.',
+            ], 404);
+        }
+
+        // Must be employer or agency
+        if (! in_array($employer->role, ['factory', 'family_care', 'agency', 'agency_staff'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only employers can download CVs.',
+            ], 403);
+        }
+
+        // Only verified employers can download
+        if (! $employer->isVerifiedEmployer()) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'employer_not_verified',
+                'message' => 'Only verified employers can view/download worker CVs.',
+            ], 403);
+        }
+
+        \App\Services\AuditLogService::log(
+            action: 'cv_download',
+            model: $worker,
+            description: "CV downloaded by employer ID: {$employer->id} ({$employer->company_name})"
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'CV download logged successfully.'
+        ]);
+    }
 }

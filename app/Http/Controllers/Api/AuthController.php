@@ -523,7 +523,7 @@ class AuthController extends Controller
             'phone'                       => 'nullable|string|max:20',
             'avatar_url'                  => 'nullable|string|max:500',
             'license_number'              => 'nullable|string|max:255',
-            'license_expiry_date'         => 'nullable|date',
+            'license_expiry_date'         => 'nullable|date|after_or_equal:today',
             'date_of_birth'               => 'nullable|date',
             'gender'                      => 'nullable|string|in:male,female,other,Male,Female',
             'address'                     => 'nullable|string|max:1000',

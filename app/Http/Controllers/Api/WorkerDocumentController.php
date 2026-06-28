@@ -283,6 +283,24 @@ class WorkerDocumentController extends Controller
         // Set badge status to pending for admin review (Phase 1: Verified Badge)
         $user->update(['verified_badge_status' => 'pending']);
 
+        // Mock AI Verification for selfie/KTP
+        $selfieDoc = WorkerDocument::where('user_id', $user->id)
+            ->whereHas('documentType', fn($q) => $q->where('slug', 'selfie'))
+            ->first();
+
+        $ktpDoc = WorkerDocument::where('user_id', $user->id)
+            ->whereHas('documentType', fn($q) => $q->where('slug', 'personal_id'))
+            ->first();
+
+        if ($selfieDoc && $ktpDoc) {
+            $selfieDoc->update(['review_status' => 'approved']);
+            $ktpDoc->update(['review_status' => 'approved']);
+            $user->update(['verified_badge_status' => 'approved']);
+            
+            // Optionally log the auto-approval
+            \Illuminate\Support\Facades\Log::info("Auto-approved user {$user->id} Verified Badge via Mock AI Verification.");
+        }
+
         // Advance onboarding step
         if (($user->onboarding_step ?? 1) < 6) {
             $user->update(['onboarding_step' => 6]);

@@ -89,4 +89,34 @@ class AdvertisementController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Pause an active advertisement (Admin only).
+     */
+    public function pause($id)
+    {
+        try {
+            $ad = Advertisement::findOrFail($id);
+            if ($ad->status === 'paused') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ad is already paused.'
+                ], 400);
+            }
+
+            $ad->update(['status' => 'paused']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Advertisement paused successfully.',
+                'data' => $ad
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Pause Ad Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to pause advertisement.'
+            ], 500);
+        }
+    }
 }
