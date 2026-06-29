@@ -112,10 +112,10 @@ class WorkerStatusService
 
         if ($selfieApproved && $personalIdApproved) {
             if ($worker->verified_badge_status !== 'verified') {
-                $worker->update([
+                $worker->forceFill([
                     'verified_badge_status'     => 'verified',
                     'verified_badge_updated_at' => now(),
-                ]);
+                ])->save();
 
                 // After badge, auto-check if ready_to_work can be set
                 $this->evaluateReadyToWork($worker->fresh());
@@ -123,12 +123,12 @@ class WorkerStatusService
         } else {
             // Revoke verification if requirements are no longer met (e.g. document rejected)
             if ($worker->verified_badge_status === 'verified') {
-                $worker->update([
+                $worker->forceFill([
                     'verified_badge_status'     => 'unverified',
                     'verified_badge_updated_at' => now(),
                     'ready_to_work_status'      => 'not_ready',
                     'ready_to_work_updated_at'  => now(),
-                ]);
+                ])->save();
             }
         }
     }
@@ -140,10 +140,10 @@ class WorkerStatusService
         $approvedDocs = $employer->documents()->where('status', 'approved')->count();
 
         if ($approvedDocs > 0 && $pendingDocs === 0 && $employer->verified_badge_status !== 'verified') {
-            $employer->update([
+            $employer->forceFill([
                 'verified_badge_status'     => 'verified',
                 'verified_badge_updated_at' => now(),
-            ]);
+            ])->save();
         }
     }
 
@@ -161,11 +161,11 @@ class WorkerStatusService
         if ($user->verified_badge_status !== 'verified') {
             // Must have verified badge first
             if ($user->ready_to_work_status === 'ready' || $user->employer_self_check_required) {
-                $user->update([
+                $user->forceFill([
                     'ready_to_work_status'         => 'not_ready',
                     'ready_to_work_updated_at'     => now(),
                     'employer_self_check_required' => false,
-                ]);
+                ])->save();
             }
             return;
         }
@@ -177,11 +177,11 @@ class WorkerStatusService
         $autoReadyTypes = ['arc_other', 'aprc', 'taiwanese', 'other', 'gold_card', 'spouse_roc'];
         if (in_array($workerType, $autoReadyTypes)) {
             if ($user->ready_to_work_status !== 'ready' || $user->employer_self_check_required) {
-                $user->update([
+                $user->forceFill([
                     'ready_to_work_status'         => 'ready',
                     'ready_to_work_updated_at'     => now(),
                     'employer_self_check_required' => false,
-                ]);
+                ])->save();
             }
             return;
         }
@@ -189,11 +189,11 @@ class WorkerStatusService
         // Not eligible type
         if ($workerType === 'not_sure') {
             if ($user->ready_to_work_status === 'ready' || $user->employer_self_check_required) {
-                $user->update([
+                $user->forceFill([
                     'ready_to_work_status'         => 'not_ready',
                     'ready_to_work_updated_at'     => now(),
                     'employer_self_check_required' => false,
-                ]);
+                ])->save();
             }
             return;
         }
@@ -222,11 +222,11 @@ class WorkerStatusService
                 if ($shouldReady === 'not_ready' && $user->ready_to_work_status === 'rejected') {
                     // keep rejected
                 } else {
-                    $user->update([
+                    $user->forceFill([
                         'ready_to_work_status'         => $shouldReady,
                         'ready_to_work_updated_at'     => now(),
                         'employer_self_check_required' => false,
-                    ]);
+                    ])->save();
                 }
             }
             return;
@@ -274,11 +274,11 @@ class WorkerStatusService
             if ($shouldReady === 'not_ready' && $user->ready_to_work_status === 'rejected') {
                 // keep rejected
             } else {
-                $user->update([
+                $user->forceFill([
                     'ready_to_work_status'         => $shouldReady,
                     'ready_to_work_updated_at'     => now(),
                     'employer_self_check_required' => false,
-                ]);
+                ])->save();
             }
         }
     }
@@ -289,7 +289,7 @@ class WorkerStatusService
      */
     public function onSelfieApproved(User $worker): void
     {
-        $worker->update(['selfie_verified_at' => now()]);
+        $worker->forceFill(['selfie_verified_at' => now()])->save();
 
         $docType = DocumentType::where('slug', 'selfie')->first();
         if ($docType) {
@@ -337,10 +337,10 @@ class WorkerStatusService
         // Special case: open_work_permit approval removes sponsorship requirement
         $docSlug = $document->documentType?->slug;
         if ($docSlug === 'open_work_permit') {
-            $worker->update([
+            $worker->forceFill([
                 'open_work_right_status' => 'approved',
                 'sponsorship_required'   => false,
-            ]);
+            ])->save();
             return; // no need to re-evaluate ready_to_work for this doc type
         }
 
@@ -364,7 +364,7 @@ class WorkerStatusService
         // Special case: open_work_permit rejection resets open_work_right_status
         $docSlug = $document->documentType?->slug;
         if ($docSlug === 'open_work_permit') {
-            $worker->update(['open_work_right_status' => 'rejected']);
+            $worker->forceFill(['open_work_right_status' => 'rejected'])->save();
             return;
         }
 

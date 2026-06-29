@@ -178,7 +178,7 @@ Route::middleware('auth:sanctum')->prefix('applications')->group(function () {
 });
 
 // ── Chat ──────────────────────────────────────────────────────────────────
-Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:30,1'])->prefix('chat')->group(function () {
     Route::get('/conversations',           [ChatController::class, 'conversations']);
     Route::get('/messages/{userId}',       [ChatController::class, 'messages']);
     Route::post('/messages/{userId}',      [ChatController::class, 'send']);
@@ -209,7 +209,7 @@ Route::middleware('auth:sanctum')->post('/reverb/auth', function (Illuminate\Htt
 
 // ── Mobile Chat Compatibility Alias (/chats/* → /chat/*) ─────────────────
 // Mobile calls /chats but backend is /chat
-Route::middleware('auth:sanctum')->prefix('chats')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:30,1'])->prefix('chats')->group(function () {
     Route::get('/',                 [ChatController::class, 'conversations']);
     Route::get('/{userId}',         [ChatController::class, 'messages']);
     Route::post('/{userId}',        [ChatController::class, 'send']);
@@ -253,7 +253,7 @@ Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
 });
 
 // ── Reports & Trust System ────────────────────────────────────────────────
-Route::middleware('auth:sanctum')->prefix('reports')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:30,1'])->prefix('reports')->group(function () {
     Route::post('/',                         [\App\Http\Controllers\Api\ReportController::class, 'store']);
     Route::get('/my',                        [\App\Http\Controllers\Api\ReportController::class, 'myReports']);
     Route::get('/violations-against-me',     [\App\Http\Controllers\Api\ReportController::class, 'violationHistory']); // UAT #80

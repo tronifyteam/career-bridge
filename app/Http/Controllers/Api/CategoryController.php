@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\City;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 class CategoryController extends Controller
 {
@@ -14,7 +15,7 @@ class CategoryController extends Controller
      */
     public function categories(): JsonResponse
     {
-        $categories = Category::orderBy('name')->get();
+        $categories = Cache::remember('meta.categories', 86400, fn() => Category::orderBy('name')->get());
 
         return response()->json([
             'success' => true,
@@ -32,7 +33,7 @@ class CategoryController extends Controller
      */
     public function cities(): JsonResponse
     {
-        $cities = City::orderBy('name')->get();
+        $cities = Cache::remember('meta.cities', 86400, fn() => City::orderBy('name')->get());
 
         return response()->json([
             'success' => true,

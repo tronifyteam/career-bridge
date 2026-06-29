@@ -94,7 +94,7 @@ class AdminWorkerController extends Controller
         // Detect JSON request (API) vs Blade (web)
         if ($request->expectsJson() || $request->is('api/*')) {
             $workers = User::workers()
-                ->with(['workerLanguages.language', 'workerJobTypes.jobType'])
+                ->with(['workerLanguages.language', 'workerJobTypes.jobType', 'workerDocuments'])
                 ->orderByDesc('created_at')
                 ->paginate(20);
 
@@ -213,11 +213,11 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Worker not found.'], 404);
         }
 
-        $user->update([
+        $user->forceFill([
             'verified_badge_status'     => 'rejected',
             'verified_badge_updated_at' => now(),
             'selfie_verified_at'        => null,
-        ]);
+        ])->save();
 
         // Sync selfie document requirement status to rejected
         $docType = \App\Models\DocumentType::where('slug', 'selfie')->first();
@@ -397,11 +397,11 @@ class AdminWorkerController extends Controller
         $allApproved = $allDocs->every(fn($d) => $d->status === 'approved');
 
         if ($allApproved && $allDocs->isNotEmpty()) {
-            $employer->update([
+            $employer->forceFill([
                 'verified_badge_status'     => 'verified',
                 'verified_badge_updated_at' => now(),
                 'verification_status'       => 'basic_verified',
-            ]);
+            ])->save();
             $this->workerStatus->logVerification($employer, 'employer', 'approved', 'All documents approved — badge granted');
             $this->fcmService?->sendToUser($employer, 'Akun Terverifikasi', 'Selamat! Akun perusahaan/majikan Anda telah terverifikasi penuh.');
         } else {
@@ -411,8 +411,9 @@ class AdminWorkerController extends Controller
         if ($request->expectsJson() || $request->is('api/*')) {
             
         \App\Services\AuditLogService::log('approve_employer_document', $document, 'Admin approved employer document');
-        
-        \App\Services\AuditLogService::log('approve_employer', $employer, 'Admin approved employer registration');
+        if ($allApproved) {
+            \App\Services\AuditLogService::log('approve_employer', $employer, 'Admin approved employer registration (all docs approved)');
+        }
         return response()->json([
                 'success'      => true,
                 'message'      => 'Employer document approved.' . ($allApproved ? ' Verified badge granted.' : ''),
@@ -459,8 +460,6 @@ class AdminWorkerController extends Controller
         if ($request->expectsJson() || $request->is('api/*')) {
             
         \App\Services\AuditLogService::log('reject_employer_document', $document, 'Admin rejected employer document with note: ' . $request->note);
-        
-        \App\Services\AuditLogService::log('reject_employer', $employer, 'Admin rejected employer registration with note: ' . $request->note);
         return response()->json([
                 'success' => true,
                 'message' => 'Employer document rejected.',
@@ -482,13 +481,13 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Employer not found.'], 404);
         }
 
-        $employer->update([
+        $employer->forceFill([
             'verification_status'      => 'basic_verified',
             'verified_badge_status'    => 'verified',
             'verified_badge_updated_at'=> now(),
             'ready_to_work_status'     => 'ready',  // allows publishing jobs
             'ready_to_work_updated_at' => now(),
-        ]);
+        ])->save();
 
         $this->workerStatus->logVerification($employer, 'employer', 'approved', 'Employer approved by admin');
         $this->fcmService->sendToUser($employer, 'Akun Disetujui', 'Akun Anda telah disetujui oleh admin. Anda sekarang dapat mempublikasikan lowongan kerja.');
@@ -509,7 +508,7 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Employer not found.'], 404);
         }
 
-        $employer->update(['verification_status' => 'rejected']);
+        $employer->forceFill(['verification_status' => 'rejected'])->save();
         $this->workerStatus->logVerification($employer, 'employer', 'rejected', $request->note);
         $this->fcmService->sendToUser($employer, 'Akun Ditolak', 'Pengajuan akun Anda ditolak. Alasan: ' . $request->note);
 
@@ -529,10 +528,10 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Employer not found.'], 404);
         }
 
-        $employer->update([
+        $employer->forceFill([
             'verification_status'  => 'suspended',
             'ready_to_work_status' => 'rejected',
-        ]);
+        ])->save();
 
         // Pause all active jobs from this employer
         $employer->jobs()->where('status', 'published')->update(['status' => 'paused']);
@@ -606,10 +605,10 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'User not found.'], 404);
         }
 
-        $user->update([
+        $user->forceFill([
             'verification_status'  => 'suspended',
             'ready_to_work_status' => 'rejected',
-        ]);
+        ])->save();
 
         // Revoke all tokens
         $user->tokens()->delete();
@@ -632,7 +631,7 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'User not found.'], 404);
         }
 
-        $user->update(['verification_status' => 'unverified']);
+        $user->forceFill(['verification_status' => 'unverified'])->save();
         $this->workerStatus->logVerification($user, 'user', 'restored', 'Restored by admin');
         $this->fcmService->sendToUser($user, 'Akun Dipulihkan', 'Akun Anda telah dipulihkan oleh admin.');
 

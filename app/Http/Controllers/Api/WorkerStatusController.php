@@ -10,6 +10,7 @@ use App\Models\WorkerJobType;
 use App\Services\WorkerStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class WorkerStatusController extends Controller
 {
@@ -140,9 +141,10 @@ class WorkerStatusController extends Controller
      */
     public function listLanguages(): JsonResponse
     {
+        $data = Cache::remember('meta.languages', 86400, fn() => Language::all()->map->toApiArray()->values());
         return response()->json([
             'success' => true,
-            'data'    => Language::all()->map->toApiArray()->values(),
+            'data'    => $data,
         ]);
     }
 
@@ -152,9 +154,10 @@ class WorkerStatusController extends Controller
      */
     public function listJobTypes(): JsonResponse
     {
+        $data = Cache::remember('meta.job_types', 86400, fn() => JobType::all()->map->toApiArray()->values());
         return response()->json([
             'success' => true,
-            'data'    => JobType::all()->map->toApiArray()->values(),
+            'data'    => $data,
         ]);
     }
 }
