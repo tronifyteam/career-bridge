@@ -42,9 +42,12 @@ final class SendFcmNotificationJob implements ShouldQueue
             ->withNotification(Notification::create($this->title, $this->body))
             ->withData($this->data);
 
-        $messaging->send($message);
-
-        Log::info("FCM: Notification sent successfully to User {$this->user->id}");
+        try {
+            $messaging->send($message);
+            Log::info("FCM: Notification sent successfully to User {$this->user->id}");
+        } catch (\Throwable $e) {
+            Log::error("FCM Error in Job for User {$this->user->id}: " . $e->getMessage());
+        }
     }
 
     public function failed(\Throwable $e): void
