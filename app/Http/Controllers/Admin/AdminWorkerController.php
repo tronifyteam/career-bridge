@@ -11,6 +11,7 @@ use App\Services\FcmService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 
 /**
  * AdminApiController — JSON API for admin actions.
@@ -192,11 +193,17 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'no_selfie', 'message' => 'Worker has not uploaded a selfie yet.'], 422);
         }
 
-        $this->workerStatus->onSelfieApproved($user);
-        $this->fcmService->sendToUser($user, 'Verifikasi Wajah Disetujui', 'Foto verifikasi wajah Anda telah disetujui oleh admin.');
+        DB::beginTransaction();
+        try {
+            $this->workerStatus->onSelfieApproved($user);
+            $this->fcmService->sendToUser($user, 'Verifikasi Wajah Disetujui', 'Foto verifikasi wajah Anda telah disetujui oleh admin.');
 
-        
-        \App\Services\AuditLogService::log('approve_selfie', $user, 'Admin approved selfie');
+            \App\Services\AuditLogService::log('approve_selfie', $user, 'Admin approved selfie');
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
         return response()->json([
             'success' => true,
             'message' => "Selfie approved. Verified badge: {$user->fresh()->verified_badge_status}",
@@ -213,34 +220,41 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Worker not found.'], 404);
         }
 
-        $user->forceFill([
-            'verified_badge_status'     => 'rejected',
-            'verified_badge_updated_at' => now(),
-            'selfie_verified_at'        => null,
-        ])->save();
+        DB::beginTransaction();
+        try {
+            $user->forceFill([
+                'verified_badge_status'     => 'rejected',
+                'verified_badge_updated_at' => now(),
+                'selfie_verified_at'        => null,
+            ])->save();
 
-        // Sync selfie document requirement status to rejected
-        $docType = \App\Models\DocumentType::where('slug', 'selfie')->first();
-        if ($docType) {
-            \App\Models\WorkerDocumentRequirement::where('user_id', $user->id)
-                ->where('document_type_id', $docType->id)
-                ->update(['upload_status' => 'rejected']);
+            // Sync selfie document requirement status to rejected
+            $docType = \App\Models\DocumentType::where('slug', 'selfie')->first();
+            if ($docType) {
+                \App\Models\WorkerDocumentRequirement::where('user_id', $user->id)
+                    ->where('document_type_id', $docType->id)
+                    ->update(['upload_status' => 'rejected']);
 
-            \App\Models\WorkerDocument::where('user_id', $user->id)
-                ->where('document_type_id', $docType->id)
-                ->update([
-                    'review_status' => 'rejected',
-                    'review_note'   => $request->note,
-                    'reviewed_by'   => auth()->id(),
-                    'reviewed_at'   => now(),
-                ]);
+                \App\Models\WorkerDocument::where('user_id', $user->id)
+                    ->where('document_type_id', $docType->id)
+                    ->update([
+                        'review_status' => 'rejected',
+                        'review_note'   => $request->note,
+                        'reviewed_by'   => auth()->id(),
+                        'reviewed_at'   => now(),
+                    ]);
+            }
+
+            $this->workerStatus->logVerification($user, 'worker', 'rejected', $request->note ?? 'Selfie rejected by admin');
+            $this->fcmService->sendToUser($user, 'Verifikasi Wajah Ditolak', 'Foto verifikasi wajah Anda ditolak. ' . ($request->note ?? 'Silakan upload ulang.'));
+
+            \App\Services\AuditLogService::log('reject_selfie', $user, 'Admin rejected selfie with note: ' . $request->note);
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
-
-        $this->workerStatus->logVerification($user, 'worker', 'rejected', $request->note ?? 'Selfie rejected by admin');
-        $this->fcmService->sendToUser($user, 'Verifikasi Wajah Ditolak', 'Foto verifikasi wajah Anda ditolak. ' . ($request->note ?? 'Silakan upload ulang.'));
-
-        
-        \App\Services\AuditLogService::log('reject_selfie', $user, 'Admin rejected selfie with note: ' . $request->note);
         return response()->json([
             'success' => true,
             'message' => 'Selfie rejected.',
@@ -384,35 +398,41 @@ class AdminWorkerController extends Controller
             return redirect()->back()->with('error', 'Document not found.');
         }
 
-        $document->update([
-            'status'      => 'approved',
-            'review_note' => $request->note,
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
-        ]);
+        DB::beginTransaction();
+        try {
+            $document->update([
+                'status'      => 'approved',
+                'review_note' => $request->note,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]);
 
-        // Auto-set verified_badge if ALL employer documents are approved
-        $employer  = $document->user;
-        $allDocs   = \App\Models\EmployerDocument::where('user_id', $employer->id)->get();
-        $allApproved = $allDocs->every(fn($d) => $d->status === 'approved');
+            // Auto-set verified_badge if ALL employer documents are approved
+            $employer  = $document->user;
+            $allDocs   = \App\Models\EmployerDocument::where('user_id', $employer->id)->get();
+            $allApproved = $allDocs->every(fn($d) => $d->status === 'approved');
 
-        if ($allApproved && $allDocs->isNotEmpty()) {
-            $employer->forceFill([
-                'verified_badge_status'     => 'verified',
-                'verified_badge_updated_at' => now(),
-                'verification_status'       => 'basic_verified',
-            ])->save();
-            $this->workerStatus->logVerification($employer, 'employer', 'approved', 'All documents approved — badge granted');
-            $this->fcmService?->sendToUser($employer, 'Akun Terverifikasi', 'Selamat! Akun perusahaan/majikan Anda telah terverifikasi penuh.');
-        } else {
-            $this->fcmService?->sendToUser($employer, 'Dokumen Disetujui', 'Salah satu dokumen Anda telah disetujui.');
-        }
+            if ($allApproved && $allDocs->isNotEmpty()) {
+                $employer->forceFill([
+                    'verified_badge_status'     => 'verified',
+                    'verified_badge_updated_at' => now(),
+                    'verification_status'       => 'basic_verified',
+                ])->save();
+                $this->workerStatus->logVerification($employer, 'employer', 'approved', 'All documents approved — badge granted');
+                $this->fcmService?->sendToUser($employer, 'Akun Terverifikasi', 'Selamat! Akun perusahaan/majikan Anda telah terverifikasi penuh.');
+            } else {
+                $this->fcmService?->sendToUser($employer, 'Dokumen Disetujui', 'Salah satu dokumen Anda telah disetujui.');
+            }
 
-        if ($request->expectsJson() || $request->is('api/*')) {
+            \App\Services\AuditLogService::log('approve_employer_document', $document, 'Admin approved employer document');
+            if ($allApproved) {
+                \App\Services\AuditLogService::log('approve_employer', $employer, 'Admin approved employer registration (all docs approved)');
+            }
             
-        \App\Services\AuditLogService::log('approve_employer_document', $document, 'Admin approved employer document');
-        if ($allApproved) {
-            \App\Services\AuditLogService::log('approve_employer', $employer, 'Admin approved employer registration (all docs approved)');
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
         return response()->json([
                 'success'      => true,
@@ -441,25 +461,31 @@ class AdminWorkerController extends Controller
             return redirect()->back()->with('error', 'Document not found.');
         }
 
-        $document->update([
-            'status'      => 'rejected',
-            'review_note' => $request->note,
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
-        ]);
+        DB::beginTransaction();
+        try {
+            $document->update([
+                'status'      => 'rejected',
+                'review_note' => $request->note,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]);
 
-        // Ensure employer badge stays unverified
-        $document->user->update([
-            'verified_badge_status' => 'rejected',
-            'verification_status'   => 'rejected',
-        ]);
+            // Ensure employer badge stays unverified
+            $document->user->update([
+                'verified_badge_status' => 'rejected',
+                'verification_status'   => 'rejected',
+            ]);
 
-        $this->workerStatus->logVerification($document->user, 'employer', 'rejected', $request->note);
-        $this->fcmService->sendToUser($document->user, 'Dokumen Ditolak', "Dokumen Anda ditolak. Alasan: {$request->note}");
+            $this->workerStatus->logVerification($document->user, 'employer', 'rejected', $request->note);
+            $this->fcmService->sendToUser($document->user, 'Dokumen Ditolak', "Dokumen Anda ditolak. Alasan: {$request->note}");
 
-        if ($request->expectsJson() || $request->is('api/*')) {
+            \App\Services\AuditLogService::log('reject_employer_document', $document, 'Admin rejected employer document with note: ' . $request->note);
             
-        \App\Services\AuditLogService::log('reject_employer_document', $document, 'Admin rejected employer document with note: ' . $request->note);
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
         return response()->json([
                 'success' => true,
                 'message' => 'Employer document rejected.',
@@ -481,16 +507,24 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Employer not found.'], 404);
         }
 
-        $employer->forceFill([
-            'verification_status'      => 'basic_verified',
-            'verified_badge_status'    => 'verified',
-            'verified_badge_updated_at'=> now(),
-            'ready_to_work_status'     => 'ready',  // allows publishing jobs
-            'ready_to_work_updated_at' => now(),
-        ])->save();
+        DB::beginTransaction();
+        try {
+            $employer->forceFill([
+                'verification_status'      => 'basic_verified',
+                'verified_badge_status'    => 'verified',
+                'verified_badge_updated_at'=> now(),
+                'ready_to_work_status'     => 'ready',  // allows publishing jobs
+                'ready_to_work_updated_at' => now(),
+            ])->save();
 
-        $this->workerStatus->logVerification($employer, 'employer', 'approved', 'Employer approved by admin');
-        $this->fcmService->sendToUser($employer, 'Akun Disetujui', 'Akun Anda telah disetujui oleh admin. Anda sekarang dapat mempublikasikan lowongan kerja.');
+            $this->workerStatus->logVerification($employer, 'employer', 'approved', 'Employer approved by admin');
+            $this->fcmService->sendToUser($employer, 'Akun Disetujui', 'Akun Anda telah disetujui oleh admin. Anda sekarang dapat mempublikasikan lowongan kerja.');
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
 
         return response()->json([
             'success' => true,
@@ -508,9 +542,17 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Employer not found.'], 404);
         }
 
-        $employer->forceFill(['verification_status' => 'rejected'])->save();
-        $this->workerStatus->logVerification($employer, 'employer', 'rejected', $request->note);
-        $this->fcmService->sendToUser($employer, 'Akun Ditolak', 'Pengajuan akun Anda ditolak. Alasan: ' . $request->note);
+        DB::beginTransaction();
+        try {
+            $employer->forceFill(['verification_status' => 'rejected'])->save();
+            $this->workerStatus->logVerification($employer, 'employer', 'rejected', $request->note);
+            $this->fcmService->sendToUser($employer, 'Akun Ditolak', 'Pengajuan akun Anda ditolak. Alasan: ' . $request->note);
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
 
         return response()->json([
             'success' => true,
@@ -528,19 +570,26 @@ class AdminWorkerController extends Controller
             return response()->json(['success' => false, 'error' => 'not_found', 'message' => 'Employer not found.'], 404);
         }
 
-        $employer->forceFill([
-            'verification_status'  => 'suspended',
-            'ready_to_work_status' => 'rejected',
-        ])->save();
+        DB::beginTransaction();
+        try {
+            $employer->forceFill([
+                'verification_status'  => 'suspended',
+                'ready_to_work_status' => 'rejected',
+            ])->save();
 
-        // Pause all active jobs from this employer
-        $employer->jobs()->where('status', 'published')->update(['status' => 'paused']);
+            // Pause all active jobs from this employer
+            $employer->jobs()->where('status', 'published')->update(['status' => 'paused']);
 
-        $this->workerStatus->logVerification($employer, 'employer', 'suspended', $request->note ?? 'Suspended by admin');
-        $this->fcmService->sendToUser($employer, 'Akun Ditangguhkan', 'Akun Anda telah ditangguhkan oleh admin. Semua lowongan aktif Anda dijeda.');
+            $this->workerStatus->logVerification($employer, 'employer', 'suspended', $request->note ?? 'Suspended by admin');
+            $this->fcmService->sendToUser($employer, 'Akun Ditangguhkan', 'Akun Anda telah ditangguhkan oleh admin. Semua lowongan aktif Anda dijeda.');
 
-        
-        \App\Services\AuditLogService::log('suspend_employer', $employer, 'Admin suspended employer with note: ' . ($request->note ?? 'N/A'));
+            \App\Services\AuditLogService::log('suspend_employer', $employer, 'Admin suspended employer with note: ' . ($request->note ?? 'N/A'));
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
         return response()->json([
             'success' => true,
             'message' => 'Employer suspended. All active jobs paused.',

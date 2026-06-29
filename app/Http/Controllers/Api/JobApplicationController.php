@@ -10,6 +10,7 @@ use App\Models\JobApplication;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class JobApplicationController extends Controller
 {
@@ -75,36 +76,44 @@ class JobApplicationController extends Controller
             'cover_letter' => 'nullable|string|max:2000',
         ]);
 
-        $application = JobApplication::create([
-            'job_id'       => $jobId,
-            'user_id'      => $user->id,
-            'status'       => 'pending',
-            'cover_letter' => $validated['cover_letter'] ?? null,
-            'applied_at'   => now(),
-        ]);
+        DB::beginTransaction();
+        try {
+            $application = JobApplication::create([
+                'job_id'       => $jobId,
+                'user_id'      => $user->id,
+                'status'       => 'pending',
+                'cover_letter' => $validated['cover_letter'] ?? null,
+                'applied_at'   => now(),
+            ]);
 
-        // ── Create status snapshot ──────────────────────
-        $snapshot = ApplicationStatusHistory::create([
-            'application_id'              => $application->id,
-            'verified_badge_status'       => $user->verified_badge_status ?? 'unverified',
-            'ready_to_work_status'        => $user->ready_to_work_status ?? 'not_ready',
-            'sponsorship_required'        => (bool) $user->sponsorship_required,
-            'employer_self_check_required'=> (bool) $user->employer_self_check_required,
-            'worker_nationality'          => $user->nationality,
-            'worker_type_slug'            => $user->worker_type,
-            'recorded_at'                 => now(),
-        ]);
+            // ── Create status snapshot ──────────────────────
+            $snapshot = ApplicationStatusHistory::create([
+                'application_id'              => $application->id,
+                'verified_badge_status'       => $user->verified_badge_status ?? 'unverified',
+                'ready_to_work_status'        => $user->ready_to_work_status ?? 'not_ready',
+                'sponsorship_required'        => (bool) $user->sponsorship_required,
+                'employer_self_check_required'=> (bool) $user->employer_self_check_required,
+                'worker_nationality'          => $user->nationality,
+                'worker_type_slug'            => $user->worker_type,
+                'recorded_at'                 => now(),
+            ]);
 
-        $application->update(['status_snapshot_id' => $snapshot->id]);
+            $application->update(['status_snapshot_id' => $snapshot->id]);
 
-        // ── Log initial status ───────────────────────────────────────
-        ApplicationStatusLog::create([
-            'application_id' => $application->id,
-            'status'         => 'pending',
-            'notes'          => 'Application submitted by worker.',
-            'changed_by'     => 'worker',
-            'changed_at'     => now(),
-        ]);
+            // ── Log initial status ───────────────────────────────────────
+            ApplicationStatusLog::create([
+                'application_id' => $application->id,
+                'status'         => 'pending',
+                'notes'          => 'Application submitted by worker.',
+                'changed_by'     => 'worker',
+                'changed_at'     => now(),
+            ]);
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
 
         $application->load('job.employer');
 

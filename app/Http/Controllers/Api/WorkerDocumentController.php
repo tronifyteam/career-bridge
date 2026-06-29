@@ -8,6 +8,7 @@ use App\Models\WorkerDocument;
 use App\Services\WorkerStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WorkerDocumentController extends Controller
 {
@@ -139,39 +140,47 @@ class WorkerDocumentController extends Controller
         $path     = $file->storeAs('worker_documents', $filename, 'public');
         $url      = asset('storage/' . $path);
 
-        // Create the document record
-        $document = WorkerDocument::create([
-            'user_id'           => $user->id,
-            'document_type_id'  => $docType->id,
-            'file_url'          => $url,
-            'original_filename' => $file->getClientOriginalName(),
-            'review_status'     => 'pending',
-        ]);
+        DB::beginTransaction();
+        try {
+            // Create the document record
+            $document = WorkerDocument::create([
+                'user_id'           => $user->id,
+                'document_type_id'  => $docType->id,
+                'file_url'          => $url,
+                'original_filename' => $file->getClientOriginalName(),
+                'review_status'     => 'pending',
+            ]);
 
-        // Update or create requirement entry
-        \App\Models\WorkerDocumentRequirement::updateOrCreate(
-            ['user_id' => $user->id, 'document_type_id' => $docType->id],
-            [
-                'upload_status'      => 'uploaded',
-                'worker_document_id' => $document->id,
-            ]
-        );
+            // Update or create requirement entry
+            \App\Models\WorkerDocumentRequirement::updateOrCreate(
+                ['user_id' => $user->id, 'document_type_id' => $docType->id],
+                [
+                    'upload_status'      => 'uploaded',
+                    'worker_document_id' => $document->id,
+                ]
+            );
 
-        // Special: if this is a selfie, update the selfie_file_url on the user
-        if ($docType->slug === 'selfie') {
-            $user->update(['selfie_file_url' => $url]);
-        }
+            // Special: if this is a selfie, update the selfie_file_url on the user
+            if ($docType->slug === 'selfie') {
+                $user->update(['selfie_file_url' => $url]);
+            }
 
-        // Update user verification status to pending
-        if (in_array($docType->slug, ['selfie', 'personal_id', 'personal_document'])) {
-            $user->update(['verified_badge_status' => 'pending']);
-        } else {
-            $user->update(['ready_to_work_status' => 'pending']);
-        }
+            // Update user verification status to pending
+            if (in_array($docType->slug, ['selfie', 'personal_id', 'personal_document'])) {
+                $user->update(['verified_badge_status' => 'pending']);
+            } else {
+                $user->update(['ready_to_work_status' => 'pending']);
+            }
 
-        // Advance onboarding step if applicable
-        if (($user->onboarding_step ?? 1) < 6) {
-            $user->update(['onboarding_step' => 6]);
+            // Advance onboarding step if applicable
+            if (($user->onboarding_step ?? 1) < 6) {
+                $user->update(['onboarding_step' => 6]);
+            }
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
 
         return response()->json([
@@ -244,87 +253,95 @@ class WorkerDocumentController extends Controller
         $path     = $file->storeAs('worker_personal_documents', $filename, 'public');
         $url      = asset('storage/' . $path);
 
-        // Create or replace the document record for this type
-        $existing = WorkerDocument::where('user_id', $user->id)
-            ->where('document_type_id', $docType->id)
-            ->where('review_status', 'pending')
-            ->first();
+        DB::beginTransaction();
+        try {
+            // Create or replace the document record for this type
+            $existing = WorkerDocument::where('user_id', $user->id)
+                ->where('document_type_id', $docType->id)
+                ->where('review_status', 'pending')
+                ->first();
 
-        if ($existing) {
-            $existing->update([
-                'file_url'          => $url,
-                'original_filename' => $file->getClientOriginalName(),
-            ]);
-            $document = $existing;
-        } else {
-            $document = WorkerDocument::create([
-                'user_id'           => $user->id,
-                'document_type_id'  => $docType->id,
-                'file_url'          => $url,
-                'original_filename' => $file->getClientOriginalName(),
-                'review_status'     => 'pending',
-            ]);
-        }
-
-        // Update the requirement entry
-        \App\Models\WorkerDocumentRequirement::updateOrCreate(
-            ['user_id' => $user->id, 'document_type_id' => $docType->id],
-            [
-                'upload_status'      => 'uploaded',
-                'worker_document_id' => $document->id,
-            ]
-        );
-
-        // Special: selfie doc also updates selfie_file_url
-        if ($docType->slug === 'selfie') {
-            $user->update(['selfie_file_url' => $url]);
-        }
-
-        // Set badge status to pending for admin review (Phase 1: Verified Badge)
-        $user->update(['verified_badge_status' => 'pending']);
-
-        // AI Verification for selfie/KTP
-        $selfieDoc = WorkerDocument::where('user_id', $user->id)
-            ->whereHas('documentType', fn($q) => $q->where('slug', 'selfie'))
-            ->first();
-
-        $ktpDoc = WorkerDocument::where('user_id', $user->id)
-            ->whereHas('documentType', fn($q) => $q->where('slug', 'personal_id'))
-            ->first();
-
-        if ($selfieDoc && $ktpDoc && ($selfieDoc->review_status === 'pending' || $ktpDoc->review_status === 'pending')) {
-            $aiService = new \App\Services\AiVerificationService();
-            $result = $aiService->verifyIdentity($selfieDoc->file_url, $ktpDoc->file_url);
-
-            if ($result) {
-                $isMatch = $result['is_match'] ?? false;
-                $isValidId = $result['is_valid_id'] ?? false;
-                $reason = $result['reason'] ?? 'AI Verification completed';
-                
-                if ($isMatch && $isValidId) {
-                    $selfieDoc->update(['review_status' => 'approved', 'rejection_reason' => null]);
-                    $ktpDoc->update(['review_status' => 'approved', 'rejection_reason' => null]);
-                    $user->update(['verified_badge_status' => 'approved']);
-                    $statusMsg = "AI Auto-Approved: {$reason}";
-                } else {
-                    $selfieDoc->update(['review_status' => 'rejected', 'rejection_reason' => $reason]);
-                    $ktpDoc->update(['review_status' => 'rejected', 'rejection_reason' => $reason]);
-                    $user->update(['verified_badge_status' => 'rejected']);
-                    $statusMsg = "AI Auto-Rejected: {$reason}";
-                }
-
-                \Illuminate\Support\Facades\Log::info("User {$user->id} Verified Badge processed via AI: {$statusMsg}");
-                \App\Services\AuditLogService::log(
-                    action: 'ai_verification',
-                    model: $user,
-                    description: $statusMsg
-                );
+            if ($existing) {
+                $existing->update([
+                    'file_url'          => $url,
+                    'original_filename' => $file->getClientOriginalName(),
+                ]);
+                $document = $existing;
+            } else {
+                $document = WorkerDocument::create([
+                    'user_id'           => $user->id,
+                    'document_type_id'  => $docType->id,
+                    'file_url'          => $url,
+                    'original_filename' => $file->getClientOriginalName(),
+                    'review_status'     => 'pending',
+                ]);
             }
-        }
 
-        // Advance onboarding step
-        if (($user->onboarding_step ?? 1) < 6) {
-            $user->update(['onboarding_step' => 6]);
+            // Update the requirement entry
+            \App\Models\WorkerDocumentRequirement::updateOrCreate(
+                ['user_id' => $user->id, 'document_type_id' => $docType->id],
+                [
+                    'upload_status'      => 'uploaded',
+                    'worker_document_id' => $document->id,
+                ]
+            );
+
+            // Special: selfie doc also updates selfie_file_url
+            if ($docType->slug === 'selfie') {
+                $user->update(['selfie_file_url' => $url]);
+            }
+
+            // Set badge status to pending for admin review (Phase 1: Verified Badge)
+            $user->update(['verified_badge_status' => 'pending']);
+
+            // AI Verification for selfie/KTP
+            $selfieDoc = WorkerDocument::where('user_id', $user->id)
+                ->whereHas('documentType', fn($q) => $q->where('slug', 'selfie'))
+                ->first();
+
+            $ktpDoc = WorkerDocument::where('user_id', $user->id)
+                ->whereHas('documentType', fn($q) => $q->where('slug', 'personal_id'))
+                ->first();
+
+            if ($selfieDoc && $ktpDoc && ($selfieDoc->review_status === 'pending' || $ktpDoc->review_status === 'pending')) {
+                $aiService = new \App\Services\AiVerificationService();
+                $result = $aiService->verifyIdentity($selfieDoc->file_url, $ktpDoc->file_url);
+
+                if ($result) {
+                    $isMatch = $result['is_match'] ?? false;
+                    $isValidId = $result['is_valid_id'] ?? false;
+                    $reason = $result['reason'] ?? 'AI Verification completed';
+                    
+                    if ($isMatch && $isValidId) {
+                        $selfieDoc->update(['review_status' => 'approved', 'rejection_reason' => null]);
+                        $ktpDoc->update(['review_status' => 'approved', 'rejection_reason' => null]);
+                        $user->update(['verified_badge_status' => 'approved']);
+                        $statusMsg = "AI Auto-Approved: {$reason}";
+                    } else {
+                        $selfieDoc->update(['review_status' => 'rejected', 'rejection_reason' => $reason]);
+                        $ktpDoc->update(['review_status' => 'rejected', 'rejection_reason' => $reason]);
+                        $user->update(['verified_badge_status' => 'rejected']);
+                        $statusMsg = "AI Auto-Rejected: {$reason}";
+                    }
+
+                    \Illuminate\Support\Facades\Log::info("User {$user->id} Verified Badge processed via AI: {$statusMsg}");
+                    \App\Services\AuditLogService::log(
+                        action: 'ai_verification',
+                        model: $user,
+                        description: $statusMsg
+                    );
+                }
+            }
+
+            // Advance onboarding step
+            if (($user->onboarding_step ?? 1) < 6) {
+                $user->update(['onboarding_step' => 6]);
+            }
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
 
         return response()->json([

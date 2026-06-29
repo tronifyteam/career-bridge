@@ -9,6 +9,7 @@ use App\Services\JobScreeningService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class JobController extends Controller
 {
@@ -249,25 +250,33 @@ class JobController extends Controller
         }
 
 
-        $job = Job::create([
-            ...$validated,
-            'employer_id'      => $user->id,
-            'employer_name'    => $user->company_name ?? $user->full_name ?? $user->name,
-            'employer_type'    => $user->role,
-            'salary_period'    => $validated['salary_period'] ?? 'Month',
-            'is_urgent'        => $validated['is_urgent'] ?? false,
-            'status'           => $status,
-            'risk_level'       => 'low', // will be updated by screening below
-            'posted_at'        => now(),
-        ]);
+        DB::beginTransaction();
+        try {
+            $job = Job::create([
+                ...$validated,
+                'employer_id'      => $user->id,
+                'employer_name'    => $user->company_name ?? $user->full_name ?? $user->name,
+                'employer_type'    => $user->role,
+                'salary_period'    => $validated['salary_period'] ?? 'Month',
+                'is_urgent'        => $validated['is_urgent'] ?? false,
+                'status'           => $status,
+                'risk_level'       => 'low', // will be updated by screening below
+                'posted_at'        => now(),
+            ]);
 
-        // M5: Run full rule-based screening (saves red_flags, missing_fields, risk_level)
-        $screenResult = app(JobScreeningService::class)->screenAndSave($job);
-        $job->refresh();
+            // M5: Run full rule-based screening (saves red_flags, missing_fields, risk_level)
+            $screenResult = app(JobScreeningService::class)->screenAndSave($job);
+            $job->refresh();
 
-        // If auto-rejected by screening, override status
-        if ($screenResult['auto_rejected'] && $status !== 'rejected') {
-            $job->update(['status' => 'rejected']);
+            // If auto-rejected by screening, override status
+            if ($screenResult['auto_rejected'] && $status !== 'rejected') {
+                $job->update(['status' => 'rejected']);
+            }
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
 
         if ($job->status === 'published' && $job->is_urgent) {
@@ -434,10 +443,18 @@ class JobController extends Controller
             }
         }
 
-        $job->update($validated);
+        DB::beginTransaction();
+        try {
+            $job->update($validated);
 
-        // M5: Re-run full screening after update
-        app(JobScreeningService::class)->screenAndSave($job);
+            // M5: Re-run full screening after update
+            app(JobScreeningService::class)->screenAndSave($job);
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
 
         return response()->json([
             'success' => true,

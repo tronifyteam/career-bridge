@@ -107,25 +107,33 @@ class AuthController extends Controller
             }
         }
 
-        $user = User::create([
-            'name' => $validated['full_name'] ?? explode('@', $validated['email'])[0],
-            'full_name' => $validated['full_name'] ?? null,
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-            'email_verified_at' => $isVerified ? now() : null,
-            'profile_completed' => false,
-            'role' => $role,
-            'worker_type' => $workerTypeSlug,
-            'worker_type_id' => $workerTypeId,
-            'sponsorship_required' => $sponsorshipRequired,
-            'onboarding_step' => $onboardingStep,
-            'verification_status' => $verificationStatus,
-            'verified_badge_status' => 'unverified',
-        ]);
+        DB::beginTransaction();
+        try {
+            $user = User::create([
+                'name' => $validated['full_name'] ?? explode('@', $validated['email'])[0],
+                'full_name' => $validated['full_name'] ?? null,
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'email_verified_at' => $isVerified ? now() : null,
+                'profile_completed' => false,
+                'role' => $role,
+                'worker_type' => $workerTypeSlug,
+                'worker_type_id' => $workerTypeId,
+                'sponsorship_required' => $sponsorshipRequired,
+                'onboarding_step' => $onboardingStep,
+                'verification_status' => $verificationStatus,
+                'verified_badge_status' => 'unverified',
+            ]);
 
-        if ($role === 'worker' && $workerTypeSlug) {
-            $workerStatus->generateDocumentChecklist($user);
-            $workerStatus->evaluateReadyToWork($user);
+            if ($role === 'worker' && $workerTypeSlug) {
+                $workerStatus->generateDocumentChecklist($user);
+                $workerStatus->evaluateReadyToWork($user);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
 
         $token = $user->createToken('mobile-app')->plainTextToken;
@@ -765,26 +773,34 @@ class AuthController extends Controller
             // Generate full public URL
             $url = asset('storage/' . $path);
 
-            $user->update(['cv_url' => $url]);
+            DB::beginTransaction();
+            try {
+                $user->update(['cv_url' => $url]);
 
-            $docType = \App\Models\DocumentType::where('slug', 'cv')->first();
-            if ($docType) {
-                $document = \App\Models\WorkerDocument::updateOrCreate(
-                    ['user_id' => $user->id, 'document_type_id' => $docType->id],
-                    [
-                        'file_url'          => $url,
-                        'original_filename' => $file->getClientOriginalName(),
-                        'review_status'     => $docType->verification_required ? 'pending' : 'approved',
-                    ]
-                );
+                $docType = \App\Models\DocumentType::where('slug', 'cv')->first();
+                if ($docType) {
+                    $document = \App\Models\WorkerDocument::updateOrCreate(
+                        ['user_id' => $user->id, 'document_type_id' => $docType->id],
+                        [
+                            'file_url'          => $url,
+                            'original_filename' => $file->getClientOriginalName(),
+                            'review_status'     => $docType->verification_required ? 'pending' : 'approved',
+                        ]
+                    );
 
-                \App\Models\WorkerDocumentRequirement::updateOrCreate(
-                    ['user_id' => $user->id, 'document_type_id' => $docType->id],
-                    [
-                        'upload_status'      => $docType->verification_required ? 'uploaded' : 'verified',
-                        'worker_document_id' => $document->id,
-                    ]
-                );
+                    \App\Models\WorkerDocumentRequirement::updateOrCreate(
+                        ['user_id' => $user->id, 'document_type_id' => $docType->id],
+                        [
+                            'upload_status'      => $docType->verification_required ? 'uploaded' : 'verified',
+                            'worker_document_id' => $document->id,
+                        ]
+                    );
+                }
+                
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
             }
 
             return response()->json([
