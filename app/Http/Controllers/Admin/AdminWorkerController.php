@@ -342,7 +342,7 @@ class AdminWorkerController extends Controller
         $request->validate([
             'verified_badge_status' => 'nullable|in:unverified,pending,verified,rejected',
             'ready_to_work_status'  => 'nullable|in:not_ready,pending,ready,rejected',
-            'current_work_status'   => 'nullable|in:blue_collar,white_collar,not_sure', // UAT #46
+            'worker_type'           => 'nullable|in:blue_collar,white_collar,not_sure', // UAT #46
             'note'                  => 'nullable|string|max:500',
         ]);
 
@@ -360,13 +360,23 @@ class AdminWorkerController extends Controller
             $updates['ready_to_work_status']     = $request->ready_to_work_status;
             $updates['ready_to_work_updated_at'] = now();
         }
-        // ── UAT #46: Admin force override current_work_status ───────────────
-        if ($request->filled('current_work_status')) {
-            $updates['current_work_status'] = $request->current_work_status;
+        // ── UAT #46: Admin force override worker_type ───────────────
+        if ($request->filled('worker_type')) {
+            $updates['worker_type'] = $request->worker_type;
+            $wtModel = \App\Models\WorkerType::where('slug', $request->worker_type)->first();
+            if ($wtModel) {
+                $updates['worker_type_id'] = $wtModel->id;
+            } else {
+                $updates['worker_type_id'] = null;
+            }
         }
 
         if ($updates) {
             $user->update($updates);
+            if ($request->filled('worker_type')) {
+                // Generate new checklist when admin changes worker type
+                resolve(\App\Services\WorkerStatusService::class)->syncDocumentRequirements($user->fresh());
+            }
             $this->workerStatus->logVerification(
                 $user, 'worker', 'manual_override',
                 $request->note ?? 'Manual override by admin'
