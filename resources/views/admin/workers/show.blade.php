@@ -218,7 +218,14 @@
         <div class="card-custom mb-4">
             <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-file-earmark-check me-2 text-primary"></i>Uploaded Documents</span>
-                <span class="badge bg-secondary">{{ $documents->count() }} doc{{ $documents->count() !== 1 ? 's' : '' }}</span>
+                <div>
+                    @if($documents->filter(fn($d) => ($d->review_status ?? 'pending') !== 'approved')->count() > 0 || ($user->selfie_file_url && !$user->selfie_verified_at))
+                        <button class="btn btn-sm btn-success me-2" onclick="approveAllDocsAndSelfie({{ $user->id }})">
+                            <i class="bi bi-check-all me-1"></i>Approve All
+                        </button>
+                    @endif
+                    <span class="badge bg-secondary">{{ $documents->count() }} doc{{ $documents->count() !== 1 ? 's' : '' }}</span>
+                </div>
             </div>
 
             @if($documents->isEmpty())
@@ -527,6 +534,32 @@
         document.getElementById('rejectNote').value = '';
         new bootstrap.Modal(document.getElementById('rejectModal')).show();
     }
+
+    async function approveAllDocsAndSelfie(workerId) {
+        if (!confirm('Approve all pending documents and selfie for this worker?')) return;
+        
+        // 1. Approve Selfie if it's pending (we check if the button exists or just fire the API if there's no verified_at)
+        const selfieBtn = document.querySelector('button[onclick^="approveSelfie"]');
+        if (selfieBtn) {
+            await apiCall(`/admin/workers/${workerId}/approve-selfie`, 'PUT');
+            selfieBtn.style.display = 'none';
+        }
+
+        // 2. Approve all pending documents
+        const pendingBtns = document.querySelectorAll('button[onclick^="approveDocument"]');
+        for (const btn of pendingBtns) {
+            const match = btn.getAttribute('onclick').match(/approveDocument\(\d+,\s*(\d+)\)/);
+            if (match) {
+                const docId = match[1];
+                await apiCall(`/admin/workers/${workerId}/documents/${docId}/approve`, 'PUT', { note: '' });
+                btn.style.display = 'none';
+            }
+        }
+        
+        showToast('All pending items approved.');
+        setTimeout(() => location.reload(), 1200);
+    }
+
 
     document.getElementById('rejectConfirmBtn').addEventListener('click', async () => {
         const note = document.getElementById('rejectNote').value.trim();
