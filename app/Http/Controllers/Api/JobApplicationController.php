@@ -39,6 +39,15 @@ class JobApplicationController extends Controller
             ], 400);
         }
 
+        // PRD Rule: Worker tidak bisa apply jika tipe pekerja masih belum pasti (not_sure) atau kosong
+        if (empty($user->worker_type) || $user->worker_type === 'not_sure') {
+            return response()->json([
+                'success' => false,
+                'error'   => 'invalid_worker_type',
+                'message' => 'Silakan pilih tipe pekerja (Worker Type) Anda di menu Profil sebelum melamar pekerjaan.',
+            ], 403);
+        }
+
         $job = Job::active()->find($jobId);
         if (! $job) {
             return response()->json([
