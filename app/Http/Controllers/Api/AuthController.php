@@ -335,15 +335,30 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        $throttleKey = 'login_attempts_' . strtolower($request->email);
+
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = \Illuminate\Support\Facades\RateLimiter::availableIn($throttleKey);
+            $minutes = ceil($seconds / 60);
+            return response()->json([
+                'success' => false,
+                'error'   => 'account_locked',
+                'message' => "Terlalu banyak percobaan login yang gagal. Akun dikunci sementara. Silakan coba lagi dalam {$minutes} menit.",
+            ], 429);
+        }
+
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
+            \Illuminate\Support\Facades\RateLimiter::hit($throttleKey, 900); // 15 minutes lockout
             return response()->json([
                 'success' => false,
                 'error'   => 'invalid_credentials',
                 'message' => 'Invalid email or password',
             ], 401);
         }
+
+        \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
 
         // ── Suspension check ───────────────────────────────────────────────
         if ($user->is_suspended) {

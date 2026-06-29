@@ -163,6 +163,14 @@ class JobController extends Controller
             'fee_table_url'              => 'nullable|string|max:500',
         ]);
 
+        // Anti-XSS Sanitization
+        $textFields = ['description', 'duties', 'requirements', 'benefits', 'hours'];
+        foreach ($textFields as $field) {
+            if (isset($validated[$field])) {
+                $validated[$field] = strip_tags($validated[$field]);
+            }
+        }
+
         $requestedStatus = $validated['status'] ?? null;
         
         // PRD Rule: Job dengan eligibility Unknown tidak bisa publish
@@ -361,6 +369,14 @@ class JobController extends Controller
             'job_source_proof_url'       => 'nullable|string|max:500',
             'fee_table_url'              => 'nullable|string|max:500',
         ]);
+
+        // Anti-XSS Sanitization
+        $textFields = ['description', 'duties', 'requirements', 'benefits', 'hours'];
+        foreach ($textFields as $field) {
+            if (isset($validated[$field])) {
+                $validated[$field] = strip_tags($validated[$field]);
+            }
+        }
 
         if (isset($validated['salary'])) {
             $salaryInput = $validated['salary'];

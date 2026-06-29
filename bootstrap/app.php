@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'is_employer' => \App\Http\Middleware\EnsureIsEmployer::class,
         ]);
         $middleware->append(\App\Http\Middleware\LogRequestResponse::class);
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

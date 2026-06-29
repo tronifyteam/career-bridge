@@ -47,7 +47,7 @@ Route::get('/industries', [\App\Http\Controllers\Api\MasterDataController::class
 Route::get('/nationalities', [\App\Http\Controllers\Api\MasterDataController::class, 'nationalities']);
 
 // ── Authentication ────────────────────────────────────────────────────────
-// Rate limit: 5 attempts per minute per IP for login (brute force protection)
+// Rate limit: 5 attempts per minute per IP for login/register (brute force protection)
 Route::middleware('throttle:5,1')->prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login',    [AuthController::class, 'login']);
@@ -55,37 +55,36 @@ Route::middleware('throttle:5,1')->prefix('auth')->group(function () {
     Route::post('/check-email', [AuthController::class, 'checkEmail']);
     Route::post('/send-email-otp', [AuthController::class, 'sendEmailOtp']);
     Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp']);
-    Route::post('/logout',   [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
     // Password reset
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password',  [AuthController::class, 'resetPassword']);
+});
 
-    // Authenticated profile routes
+// Authenticated profile routes (standard api throttle applies automatically)
+Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
+    Route::post('/logout',         [AuthController::class, 'logout']);
+    Route::get('/me',              [AuthController::class, 'me']);
+    Route::put('/profile',         [AuthController::class, 'saveProfile']);
+    Route::put('/role',            [AuthController::class, 'updateRole']);
+    Route::post('/avatar',         [AuthController::class, 'uploadAvatar']);
+    Route::delete('/avatar',       [AuthController::class, 'deleteAvatar']);
+    Route::post('/cv',             [AuthController::class, 'uploadCv']);
+    Route::delete('/cv',           [AuthController::class, 'deleteCv']);   // fix: was /api/auth/cv in mobile
+    Route::post('/fcm-token',      [AuthController::class, 'updateFcmToken']);
+    Route::put('/notification-preferences', [AuthController::class, 'updateNotificationPreferences']);
 
-Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/me',              [AuthController::class, 'me']);
-        Route::put('/profile',         [AuthController::class, 'saveProfile']);
-        Route::put('/role',            [AuthController::class, 'updateRole']);
-        Route::post('/avatar',         [AuthController::class, 'uploadAvatar']);
-        Route::delete('/avatar',       [AuthController::class, 'deleteAvatar']);
-        Route::post('/cv',             [AuthController::class, 'uploadCv']);
-        Route::delete('/cv',           [AuthController::class, 'deleteCv']);   // fix: was /api/auth/cv in mobile
-        Route::post('/fcm-token',      [AuthController::class, 'updateFcmToken']);
-        Route::put('/notification-preferences', [AuthController::class, 'updateNotificationPreferences']);
+    // Employer document upload (old flow — kept for compatibility)
+    Route::post('/employer/document', [AuthController::class, 'uploadDocument']);
+    Route::post('/worker/document',   [AuthController::class, 'uploadWorkerDocument']);
 
-        // Employer document upload (old flow — kept for compatibility)
-        Route::post('/employer/document', [AuthController::class, 'uploadDocument']);
-        Route::post('/worker/document',   [AuthController::class, 'uploadWorkerDocument']);
-
-        // ── Mobile Compatibility Aliases ─────────────────────────────────
-        // Mobile calls /auth/email/* and /auth/phone/* instead of /verify/*
-        Route::post('/email/send-code',  [VerificationController::class, 'sendEmailCode']);
-        Route::post('/email/verify',     [VerificationController::class, 'verifyEmail']);
-        Route::post('/phone/send-otp',   [VerificationController::class, 'sendPhoneOtp']);
-        Route::post('/phone/verify-otp', [VerificationController::class, 'verifyPhoneOtp']);
-        Route::post('/phone/verify-firebase', [VerificationController::class, 'verifyFirebasePhone']);
-    });
+    // ── Mobile Compatibility Aliases ─────────────────────────────────
+    // Mobile calls /auth/email/* and /auth/phone/* instead of /verify/*
+    Route::post('/email/send-code',  [VerificationController::class, 'sendEmailCode']);
+    Route::post('/email/verify',     [VerificationController::class, 'verifyEmail']);
+    Route::post('/phone/send-otp',   [VerificationController::class, 'sendPhoneOtp']);
+    Route::post('/phone/verify-otp', [VerificationController::class, 'verifyPhoneOtp']);
+    Route::post('/phone/verify-firebase', [VerificationController::class, 'verifyFirebasePhone']);
 });
 
 // ── Verification (canonical new routes) ──────────────────────────────────
