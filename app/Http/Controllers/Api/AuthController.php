@@ -646,11 +646,14 @@ class AuthController extends Controller
         // Sync worker_type → worker_type_id if changed
         if (array_key_exists('worker_type', $validated)) {
             if ($user->worker_type && $user->worker_type !== $validated['worker_type']) {
-                return response()->json([
-                    'success' => false,
-                    'error'   => 'cannot_change_worker_type',
-                    'message' => 'Worker type cannot be changed once set.',
-                ], 422);
+                // Allow changing if they were previously 'not_sure'
+                if ($user->worker_type !== 'not_sure') {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'cannot_change_worker_type',
+                        'message' => 'Worker type cannot be changed once set. Please contact admin to change your worker type.',
+                    ], 422);
+                }
             }
             $user->worker_type = $validated['worker_type'];
             $workerTypeOrSponsorshipChanged = true;
@@ -676,6 +679,7 @@ class AuthController extends Controller
         $user->save();
 
         if ($workerTypeOrSponsorshipChanged && $user->isWorker()) {
+            resolve(\App\Services\WorkerStatusService::class)->syncDocumentRequirements($user->fresh());
             resolve(\App\Services\WorkerStatusService::class)->evaluateReadyToWork($user->fresh());
         }
 
