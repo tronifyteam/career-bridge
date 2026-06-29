@@ -509,8 +509,19 @@ class ChatController extends Controller
 
         // ── UAT #29: Translation timeout / failure — return original text ──────
         // Quota was deducted; refund it since translation failed
-        if ($user->translation_quota !== null) {
-            $user->increment('translation_quota');
+        $activeSub = \App\Models\Subscription::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if ($activeSub) {
+            $activeSub->increment('chat_translation_quota');
+        } else {
+            $cacheKey = 'free_translate_' . $user->id . '_' . now()->toDateString();
+            $used = \Illuminate\Support\Facades\Cache::get($cacheKey, 0);
+            if ($used > 0) {
+                \Illuminate\Support\Facades\Cache::decrement($cacheKey);
+            }
         }
 
         return response()->json([
