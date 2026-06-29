@@ -519,9 +519,9 @@
 
         let url;
         if (_rejectType === 'employer') {
-            url = `/admin.agencies.${_rejectId}/reject`;
+            url = `/admin/agencies/${_rejectId}/reject`;
         } else {
-            url = `/admin.agencies.documents/${_rejectId}/reject`;
+            url = `/admin/agencies/documents/${_rejectId}/reject`;
         }
 
         bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
@@ -533,7 +533,7 @@
     // ── Approve Employer ───────────────────────────────────────────────
     async function approveAgency(id) {
         if (!confirm('Approve this employer? They will be able to post jobs.')) return;
-        const res = await apiCall(`/admin.agencies.${id}/approve`, 'PUT');
+        const res = await apiCall(`/admin/agencies/${id}/approve`, 'PUT');
         if (res.success) { showToast(res.message); setTimeout(() => location.reload(), 1200); }
         else showToast(res.message ?? 'Error', 'danger');
     }
@@ -541,7 +541,7 @@
     // ── Approve Employer Document ──────────────────────────────────────
     async function approveEmpDoc(docId) {
         if (!confirm('Approve this document?')) return;
-        const res = await apiCall(`/admin.agencies.documents/${docId}/approve`, 'PUT', { note: '' });
+        const res = await apiCall(`/admin/agencies/documents/${docId}/approve`, 'PUT', { note: '' });
         if (res.success) {
             showToast('Document approved.');
             setTimeout(() => location.reload(), 1200);
@@ -554,7 +554,7 @@
         let last;
         for (const btn of pendingBtns) {
             const id = btn.getAttribute('onclick').match(/\d+/)?.[0];
-            if (id) last = await apiCall(`/admin.agencies.documents/${id}/approve`, 'PUT', { note: '' });
+            if (id) last = await apiCall(`/admin/agencies/documents/${id}/approve`, 'PUT', { note: '' });
         }
         showToast('All documents approved.');
         setTimeout(() => location.reload(), 1200);
@@ -570,7 +570,7 @@
     document.getElementById('suspendConfirmBtn').addEventListener('click', async () => {
         const note = document.getElementById('suspendNote').value.trim();
         bootstrap.Modal.getInstance(document.getElementById('suspendModal')).hide();
-        const res = await apiCall(`/admin.agencies.${_rejectId}/suspend`, 'PUT', { note });
+        const res = await apiCall(`/admin/agencies/${_rejectId}/suspend`, 'PUT', { note });
         if (res.success) { showToast(res.message ?? 'Employer suspended.'); setTimeout(() => location.reload(), 1500); }
         else showToast(res.message ?? 'Error', 'danger');
     });
