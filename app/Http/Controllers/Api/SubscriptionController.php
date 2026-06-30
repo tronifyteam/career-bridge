@@ -141,10 +141,17 @@ class SubscriptionController extends Controller
             ->first();
 
         if (!$activeSub) {
+            $cacheKey = 'free_translate_' . $user->id . '_' . now()->toDateString();
+            $used = \Illuminate\Support\Facades\Cache::get($cacheKey, 0);
+            $remaining = max(0, 5 - $used);
+
             return response()->json([
                 'success' => true,
-                'data' => null,
-                'message' => 'Anda tidak memiliki paket langganan aktif saat ini.',
+                'data' => [
+                    'plan_type' => 'free',
+                    'chat_translation_quota' => $remaining,
+                ],
+                'message' => 'Anda sedang menggunakan paket gratis harian.',
             ]);
         }
 
