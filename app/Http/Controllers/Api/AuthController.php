@@ -669,7 +669,7 @@ class AuthController extends Controller
         $user->save();
 
         if ($workerTypeChanged && $user->isWorker()) {
-            resolve(\App\Services\WorkerStatusService::class)->syncDocumentRequirements($user->fresh());
+            resolve(\App\Services\WorkerStatusService::class)->generateDocumentChecklist($user->fresh());
             resolve(\App\Services\WorkerStatusService::class)->evaluateReadyToWork($user->fresh());
         }
 

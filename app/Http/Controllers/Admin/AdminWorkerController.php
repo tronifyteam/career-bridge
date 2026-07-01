@@ -375,7 +375,7 @@ class AdminWorkerController extends Controller
             $user->update($updates);
             if ($request->filled('worker_type')) {
                 // Generate new checklist when admin changes worker type
-                resolve(\App\Services\WorkerStatusService::class)->syncDocumentRequirements($user->fresh());
+                resolve(\App\Services\WorkerStatusService::class)->generateDocumentChecklist($user->fresh());
             }
             $this->workerStatus->logVerification(
                 $user, 'worker', 'manual_override',
