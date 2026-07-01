@@ -444,7 +444,8 @@ class AdminWorkerController extends Controller
             DB::rollBack();
             throw $e;
         }
-        return response()->json([
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
                 'success'      => true,
                 'message'      => 'Employer document approved.' . ($allApproved ? ' Verified badge granted.' : ''),
                 'data'         => $document->fresh()->toApiArray(),
@@ -496,7 +497,8 @@ class AdminWorkerController extends Controller
             DB::rollBack();
             throw $e;
         }
-        return response()->json([
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
                 'success' => true,
                 'message' => 'Employer document rejected.',
                 'data'    => $document->fresh()->toApiArray(),

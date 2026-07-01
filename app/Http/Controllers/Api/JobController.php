@@ -83,7 +83,7 @@ class JobController extends Controller
     /**
      * GET /api/jobs/{id}
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
         $job = Job::with('employer')->find($id);
 
@@ -95,9 +95,12 @@ class JobController extends Controller
             ], 404);
         }
 
+        $user = auth('sanctum')->user();
+        $isOwner = $user && $user->id === $job->employer_id;
+
         return response()->json([
             'success' => true,
-            'data' => $job->toApiArray(isOwner: true),
+            'data' => $job->toApiArray(isOwner: $isOwner),
         ]);
     }
 

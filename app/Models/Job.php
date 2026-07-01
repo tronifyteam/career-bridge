@@ -190,21 +190,22 @@ class Job extends Model
      */
     public function toApiArray(bool $isOwner = false): array
     {
-        $isFamilyCare = strtolower($this->employer_type ?? '') === 'family';
-        $shouldMask   = $isFamilyCare && ! $isOwner;
+        $shouldMask = ! $isOwner;
 
-        // For family care jobs, show only the district/city level for location
+        // For all jobs, show only the district/city level for location to protect privacy
         $maskedLocation = $shouldMask
             ? collect(explode(',', $this->location ?? ''))->last(null, $this->location) // last comma segment
             : $this->location;
+            
+        $maskedEmployerName = $shouldMask ? ucfirst(strtolower($this->employer_type ?? 'Employer')) . ' (Private)' : $this->employer_name;
 
         return [
             'id'                   => (string) $this->id,
             'title'                => $this->title,
-            // UAT #17 — mask employer name for family care jobs
-            'employer_name'        => $shouldMask ? 'Family Employer (Private)' : $this->employer_name,
+            // Mask employer name for workers
+            'employer_name'        => $maskedEmployerName,
             'employer_type'        => $this->employer_type,
-            // UAT #17 — show only district/city for family care
+            // Show only district/city for workers
             'location'             => trim($maskedLocation ?? $this->location ?? ''),
             'salary'               => $this->salary,
             'salary_period'        => $this->salary_period,
@@ -213,8 +214,8 @@ class Job extends Model
             'worker_count'         => $this->worker_count,
             'employment_period'    => $this->employment_period,
             'dormitory_meals_deductions' => $this->dormitory_meals_deductions,
-            'contact_method'       => $this->contact_method,
-            'mask_contact_info'    => $this->mask_contact_info,
+            'contact_method'       => ($this->mask_contact_info && $shouldMask) ? 'Hidden (Apply via platform)' : $this->contact_method,
+            'mask_contact_info'    => (bool) $this->mask_contact_info,
             'is_masked'            => $shouldMask, // frontend can show warning badge
             'tags'                 => $this->tags ?? [],
             'category'             => $this->category,
