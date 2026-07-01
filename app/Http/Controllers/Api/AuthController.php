@@ -719,16 +719,16 @@ class AuthController extends Controller
         if ($request->hasFile('avatar')) {
             $file = $request->file('avatar');
             $filename = 'avatar_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('avatars', $filename, 'public');
+            $path = $file->storeAs('avatars', $filename);
 
             // Delete old avatar if exists and not default
             if ($user->avatar_url) {
-                $oldPath = str_replace(url('/storage'), 'public', $user->avatar_url);
+                $oldPath = 'avatars/' . basename($user->avatar_url);
                 \Illuminate\Support\Facades\Storage::delete($oldPath);
             }
 
             // Generate full public URL
-            $url = asset('storage/' . $path);
+            $url = asset(\Illuminate\Support\Facades\Storage::url($path));
 
             $user->update(['avatar_url' => $url]);
 
@@ -754,7 +754,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user->avatar_url) {
-            $oldPath = str_replace(url('/storage'), 'public', $user->avatar_url);
+            $oldPath = 'avatars/' . basename($user->avatar_url);
             \Illuminate\Support\Facades\Storage::delete($oldPath);
             
             $user->update(['avatar_url' => null]);
@@ -787,10 +787,10 @@ class AuthController extends Controller
         if ($request->hasFile('cv')) {
             $file = $request->file('cv');
             $filename = 'cv_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('cvs', $filename, 'public');
+            $path = $file->storeAs('cvs', $filename);
 
             // Generate full public URL
-            $url = asset('storage/' . $path);
+            $url = asset(\Illuminate\Support\Facades\Storage::url($path));
 
             DB::beginTransaction();
             try {

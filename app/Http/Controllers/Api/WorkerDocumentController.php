@@ -137,8 +137,8 @@ class WorkerDocumentController extends Controller
         $file = $request->file('file');
 
         $filename = 'doc_' . $user->id . '_' . $docType->slug . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $path     = $file->storeAs('worker_documents', $filename, 'public');
-        $url      = asset('storage/' . $path);
+        $path     = $file->storeAs('worker_documents', $filename);
+        $url      = asset(\Illuminate\Support\Facades\Storage::url($path));
 
         DB::beginTransaction();
         try {
@@ -250,8 +250,8 @@ class WorkerDocumentController extends Controller
 
         $file     = $request->file('file');
         $filename = 'personal_' . $user->id . '_' . $docType->slug . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $path     = $file->storeAs('worker_personal_documents', $filename, 'public');
-        $url      = asset('storage/' . $path);
+        $path     = $file->storeAs('worker_personal_documents', $filename);
+        $url      = asset(\Illuminate\Support\Facades\Storage::url($path));
 
         DB::beginTransaction();
         try {
@@ -383,8 +383,8 @@ class WorkerDocumentController extends Controller
             ->update(['upload_status' => 'not_uploaded', 'worker_document_id' => null]);
 
         // Delete the file from storage
-        $relativePath = str_replace(url('/storage') . '/', '', $document->file_url);
-        \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
+        $relativePath = (str_contains($document->file_url, 'worker_personal_documents') ? 'worker_personal_documents/' : 'worker_documents/') . basename($document->file_url);
+        \Illuminate\Support\Facades\Storage::delete($relativePath);
 
         $document->delete();
 
