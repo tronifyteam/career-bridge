@@ -96,7 +96,11 @@ class AdminJobController extends Controller
 
         // Send Email Notification via Queue
         if (in_array($request->status, ['published', 'rejected']) && $job->employer && !empty($job->employer->email)) {
-            \Illuminate\Support\Facades\Mail::to($job->employer->email)->queue(new \App\Mail\JobStatusUpdatedMail($job));
+            try {
+                \Illuminate\Support\Facades\Mail::to($job->employer->email)->queue(new \App\Mail\JobStatusUpdatedMail($job));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('JobStatusUpdatedMail failed: ' . $e->getMessage());
+            }
         }
 
         return redirect()->back()->with('success', 'Job status updated to ' . $request->status . '.');
