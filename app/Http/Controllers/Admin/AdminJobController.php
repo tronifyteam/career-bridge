@@ -94,6 +94,46 @@ class AdminJobController extends Controller
             'risk_level'       => $request->status === 'published' ? 'low' : $job->risk_level,
         ]);
 
+        // Auto-reject applications if job becomes inactive
+        if (in_array($request->status, ['rejected', 'suspended', 'closed', 'paused'])) {
+            $applications = \App\Models\JobApplication::where('job_id', $job->id)
+                ->whereIn('status', ['pending', 'viewed', 'shortlisted'])
+                ->get();
+
+            foreach ($applications as $app) {
+                $note = match ($request->status) {
+                    'rejected', 'suspended' => 'Lowongan pekerjaan ini telah ditangguhkan oleh sistem.',
+                    'closed' => 'Lowongan pekerjaan ini telah ditutup oleh majikan.',
+                    'paused' => 'Lowongan pekerjaan ini sedang dihentikan sementara.',
+                    default => 'Lowongan pekerjaan ini tidak lagi tersedia.'
+                };
+
+                $app->update([
+                    'status'         => 'rejected',
+                    'employer_notes' => $note,
+                ]);
+
+                \App\Models\ApplicationStatusLog::create([
+                    'application_id' => $app->id,
+                    'status'         => 'rejected',
+                    'notes'          => $note,
+                    'changed_by'     => 'system',
+                    'changed_at'     => now(),
+                ]);
+
+                // Notify worker
+                if ($app->user_id) {
+                    \App\Models\AppNotification::create([
+                        'user_id' => $app->user_id,
+                        'type'    => 'application_status',
+                        'title'   => 'Maaf, Lowongan Tidak Tersedia',
+                        'body'    => "Lamaran Anda untuk posisi \"{$job->title}\" dibatalkan karena lowongan tidak lagi tersedia. ({$note})",
+                        'data'    => ['job_id' => $job->id, 'application_id' => $app->id],
+                    ]);
+                }
+            }
+        }
+
         // Send Email Notification via Queue
         if (in_array($request->status, ['published', 'rejected']) && $job->employer && !empty($job->employer->email)) {
             try {

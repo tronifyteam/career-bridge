@@ -132,6 +132,37 @@ class AdminReportController extends Controller
             'rejection_reason' => 'Suspended by admin due to user reports.',
         ]);
 
+        // Auto-reject pending applications since the job is now suspended
+        $applications = \App\Models\JobApplication::where('job_id', $job->id)
+            ->whereIn('status', ['pending', 'viewed', 'shortlisted'])
+            ->get();
+
+        foreach ($applications as $app) {
+            $app->update([
+                'status'         => 'rejected',
+                'employer_notes' => 'Lowongan pekerjaan ini telah ditangguhkan oleh sistem.',
+            ]);
+
+            \App\Models\ApplicationStatusLog::create([
+                'application_id' => $app->id,
+                'status'         => 'rejected',
+                'notes'          => 'Lowongan pekerjaan ini telah ditangguhkan oleh sistem.',
+                'changed_by'     => 'system',
+                'changed_at'     => now(),
+            ]);
+
+            // Notify worker
+            if ($app->user_id) {
+                AppNotification::create([
+                    'user_id' => $app->user_id,
+                    'type'    => 'application_status',
+                    'title'   => 'Maaf, Lowongan Ditangguhkan',
+                    'body'    => "Lamaran Anda untuk posisi \"{$job->title}\" dibatalkan karena lowongan telah ditangguhkan oleh sistem.",
+                    'data'    => ['job_id' => $job->id, 'application_id' => $app->id],
+                ]);
+            }
+        }
+
         // Notify employer
         if ($job->employer_id) {
             AppNotification::create([
@@ -143,7 +174,7 @@ class AdminReportController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Job suspended successfully.');
+        return redirect()->back()->with('success', 'Job suspended successfully, and pending applications have been rejected.');
     }
 
     // ── Private Helpers ─────────────────────────────────────────────────────
