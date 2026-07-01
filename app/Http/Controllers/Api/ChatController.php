@@ -202,18 +202,34 @@ class ChatController extends Controller
             ], 403);
         }
 
-        // 2. If sender is an Employer, they can only message a worker who has applied to their job listings
-        if ($user->isEmployer()) {
-            $hasApplication = JobApplication::where('user_id', $userId)
-                ->whereHas('job', function ($q) use ($user) {
-                    $q->where('employer_id', $user->id);
-                })->exists();
-
-            if (!$hasApplication) {
+        // Multi-Application validation:
+        // If an explicit application_id is provided, validate it first
+        if ($request->filled('application_id')) {
+            $application = JobApplication::find($request->application_id);
+            if ($application && in_array($application->status, ['withdrawn', 'rejected'])) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'no_application',
-                    'message' => 'Anda hanya dapat memulai chat dengan pekerja yang melamar ke lowongan Anda.',
+                    'error'   => 'application_inactive',
+                    'message' => 'Lamaran ini sudah ditarik atau ditolak. Obrolan untuk lamaran ini ditutup.',
+                ], 403);
+            }
+        } else {
+            // General chat context: ensure there's at least one active application between worker and employer
+            $workerId = $user->isWorker() ? $user->id : $userId;
+            $employerId = $user->isEmployer() ? $user->id : $userId;
+
+            $hasActiveApplication = JobApplication::where('user_id', $workerId)
+                ->whereHas('job', function ($q) use ($employerId) {
+                    $q->where('employer_id', $employerId);
+                })
+                ->whereNotIn('status', ['withdrawn', 'rejected'])
+                ->exists();
+
+            if (!$hasActiveApplication) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'no_active_application',
+                    'message' => 'Tidak ada lamaran aktif. Obrolan ditutup.',
                 ], 403);
             }
         }
@@ -659,11 +675,22 @@ class ChatController extends Controller
             $q->where('blocker_id', $userId)->where('blocked_id', $me);
         })->exists();
 
+        $workerId = $request->user()->isWorker() ? $me : $userId;
+        $employerId = $request->user()->isEmployer() ? $me : $userId;
+
+        $hasActiveApplication = JobApplication::where('user_id', $workerId)
+            ->whereHas('job', function ($q) use ($employerId) {
+                $q->where('employer_id', $employerId);
+            })
+            ->whereNotIn('status', ['withdrawn', 'rejected'])
+            ->exists();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'is_closed'  => $conversation?->is_closed ?? false,
                 'is_blocked' => $isBlocked,
+                'has_active_application' => $hasActiveApplication,
             ],
         ]);
     }
