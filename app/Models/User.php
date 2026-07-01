@@ -299,10 +299,8 @@ class User extends Authenticatable
             'verified_badge_updated_at'   => $this->verified_badge_updated_at?->toIso8601String(),
             'ready_to_work_status'        => $this->ready_to_work_status ?? 'not_ready',
             'ready_to_work_updated_at'    => $this->ready_to_work_updated_at?->toIso8601String(),
-            'sponsorship_required'        => (bool) $this->sponsorship_required,
             'open_work_right_status'      => $this->open_work_right_status,
             'employer_self_check_required'=> (bool) $this->employer_self_check_required,
-            'sponsorship_status'          => $this->sponsorship_status,
             'trust_score'                 => (int) ($this->trust_score ?? 100),
             'violation_count'             => (int) ($this->violation_count ?? 0),
             // Documents
@@ -353,7 +351,6 @@ class User extends Authenticatable
             'worker_type_id'              => $this->worker_type_id,
             'verified_badge_status'       => $this->verified_badge_status ?? 'unverified',
             'ready_to_work_status'        => $this->ready_to_work_status ?? 'not_ready',
-            'sponsorship_required'        => (bool) $this->sponsorship_required,
             'employer_self_check_required'=> (bool) $this->employer_self_check_required,
             'trust_score'                 => (int) ($this->trust_score ?? 100),
             'available_date'              => $this->available_date ? $this->available_date->format('Y-m-d') : null,

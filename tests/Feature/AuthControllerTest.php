@@ -75,7 +75,7 @@ class AuthControllerTest extends TestCase
         $this->assertEquals(5, $user->onboarding_step);
     }
 
-    public function test_can_register_as_worker_with_user_type_white_collar_sets_sponsorship()
+    public function test_can_register_as_worker_with_user_type_white_collar()
     {
         $response = $this->postJson('/api/auth/register', [
             'full_name' => 'Test White Collar',
@@ -91,7 +91,6 @@ class AuthControllerTest extends TestCase
         $this->assertNotNull($user);
         $this->assertEquals('worker', $user->role);
         $this->assertEquals('white_collar', $user->worker_type);
-        $this->assertTrue($user->sponsorship_required);
         $this->assertEquals(5, $user->onboarding_step);
     }
 

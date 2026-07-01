@@ -17,8 +17,6 @@ class WorkerDirectoryController extends Controller
      * Query params (all optional):
      *   - ready_to_work      : boolean (1/0)
      *   - verified_badge     : boolean (1/0)
-     *   - no_sponsorship     : boolean (1/0) — filter workers that do NOT need sponsorship
-     *   - sponsorship        : boolean (1/0) — filter workers that DO need sponsorship
      *   - self_check_required: boolean (1/0)
      *   - city               : string
      *   - worker_type        : string (slug)
@@ -47,7 +45,7 @@ class WorkerDirectoryController extends Controller
                 'id', 'full_name', 'nationality', 'current_city', 'avatar_url',
                 'worker_type', 'worker_type_id',
                 'verified_badge_status', 'ready_to_work_status',
-                'sponsorship_required', 'employer_self_check_required',
+                'employer_self_check_required',
                 'available_date', 'expected_salary', 'is_cv_public', 'cv_url',
             ]);
 
@@ -59,14 +57,6 @@ class WorkerDirectoryController extends Controller
 
         if ($request->boolean('verified_badge')) {
             $query->verifiedBadge();
-        }
-
-        if ($request->boolean('no_sponsorship')) {
-            $query->where('sponsorship_required', false);
-        }
-
-        if ($request->boolean('sponsorship')) {
-            $query->where('sponsorship_required', true);
         }
 
         if ($request->boolean('self_check_required')) {

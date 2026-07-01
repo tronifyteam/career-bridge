@@ -59,7 +59,6 @@ class AuthController extends Controller
 
         $workerTypeSlug = null;
         $workerTypeId = null;
-        $sponsorshipRequired = false;
         $onboardingStep = 1;
         $verificationStatus = 'unverified';
 
@@ -96,9 +95,6 @@ class AuthController extends Controller
                 if ($workerTypeModel) {
                     $workerTypeId = $workerTypeModel->id;
                 }
-                if ($workerTypeSlug === 'white_collar') {
-                    $sponsorshipRequired = true;
-                }
                 $onboardingStep = 5;
             } elseif (isset($employerRoleMap[$userTypeRaw])) {
                 $role = $employerRoleMap[$userTypeRaw];
@@ -119,7 +115,6 @@ class AuthController extends Controller
                 'role' => $role,
                 'worker_type' => $workerTypeSlug,
                 'worker_type_id' => $workerTypeId,
-                'sponsorship_required' => $sponsorshipRequired,
                 'onboarding_step' => $onboardingStep,
                 'verification_status' => $verificationStatus,
                 'verified_badge_status' => 'unverified',
@@ -561,7 +556,6 @@ class AuthController extends Controller
             // New fields
             'available_date'              => 'nullable|date',
             'expected_salary'             => 'nullable|numeric|min:0',
-            'sponsorship_required'        => 'nullable|boolean',
             'employer_self_check_required'=> 'nullable|boolean',
         ]);
 
@@ -630,7 +624,7 @@ class AuthController extends Controller
             $user->onboarding_step  = max($user->onboarding_step ?? 1, 5);
         }
 
-        $workerTypeOrSponsorshipChanged = false;
+        $workerTypeChanged = false;
 
         // New worker fields
         if (array_key_exists('available_date', $validated)) {
@@ -638,21 +632,6 @@ class AuthController extends Controller
         }
         if (array_key_exists('expected_salary', $validated)) {
             $user->expected_salary = $validated['expected_salary'];
-        }
-        if (array_key_exists('sponsorship_required', $validated)) {
-            $newSponsorshipValue = (bool) $validated['sponsorship_required'];
-            // Guard: worker cannot self-remove sponsorship requirement without admin-approved open work permit
-            if ($newSponsorshipValue === false && $user->sponsorship_required == true && $user->isWorker()) {
-                if ($user->open_work_right_status !== 'approved') {
-                    return response()->json([
-                        'success' => false,
-                        'error'   => 'open_work_right_not_approved',
-                        'message' => 'Upload and receive admin approval for your Open Work Permit (APRC / Gold Card) before removing the sponsorship requirement.',
-                    ], 403);
-                }
-            }
-            $user->sponsorship_required = $newSponsorshipValue;
-            $workerTypeOrSponsorshipChanged = true;
         }
         if (array_key_exists('employer_self_check_required', $validated)) {
             $user->employer_self_check_required = $validated['employer_self_check_required'];
@@ -671,15 +650,11 @@ class AuthController extends Controller
                 }
             }
             $user->worker_type = $validated['worker_type'];
-            $workerTypeOrSponsorshipChanged = true;
+            $workerTypeChanged = true;
             if ($validated['worker_type']) {
                 $workerTypeModel = \App\Models\WorkerType::where('slug', $validated['worker_type'])->first();
                 if ($workerTypeModel) {
                     $user->worker_type_id = $workerTypeModel->id;
-                    // White collar → set sponsorship_required by default
-                    if ($validated['worker_type'] === 'white_collar' && ! isset($validated['sponsorship_required'])) {
-                        $user->sponsorship_required = true;
-                    }
                 }
             } else {
                 $user->worker_type_id = null;
@@ -693,7 +668,7 @@ class AuthController extends Controller
 
         $user->save();
 
-        if ($workerTypeOrSponsorshipChanged && $user->isWorker()) {
+        if ($workerTypeChanged && $user->isWorker()) {
             resolve(\App\Services\WorkerStatusService::class)->syncDocumentRequirements($user->fresh());
             resolve(\App\Services\WorkerStatusService::class)->evaluateReadyToWork($user->fresh());
         }

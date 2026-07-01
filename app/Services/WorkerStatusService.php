@@ -334,12 +334,11 @@ class WorkerStatusService
                 'worker_document_id' => $document->id,
             ]);
 
-        // Special case: open_work_permit approval removes sponsorship requirement
+        // Special case: open_work_permit approval grants open work right status
         $docSlug = $document->documentType?->slug;
         if ($docSlug === 'open_work_permit') {
             $worker->forceFill([
                 'open_work_right_status' => 'approved',
-                'sponsorship_required'   => false,
             ])->save();
             return; // no need to re-evaluate ready_to_work for this doc type
         }

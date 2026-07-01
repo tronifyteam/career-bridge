@@ -182,10 +182,6 @@ class UserOnboardingController extends Controller
             'worker_type' => $workerType->slug,
             'worker_type_id' => $workerType->id,
             'onboarding_step' => max($user->onboarding_step ?? 1, 5),
-            // White collar requires sponsorship by default unless explicitly overridden
-            'sponsorship_required' => $request->has('sponsorship_required')
-                ? (bool) $request->sponsorship_required
-                : ($workerTypeRaw === 'white_collar'),
             // verified_badge_status remains 'unverified' until admin approves personal docs (Phase 1)
         ]));
 

@@ -55,7 +55,6 @@ class WorkerStatusController extends Controller
                 'verified_badge_updated_at'    => $user->verified_badge_updated_at?->toIso8601String(),
                 'ready_to_work_status'         => $readyStatus,
                 'ready_to_work_updated_at'     => $user->ready_to_work_updated_at?->toIso8601String(),
-                'sponsorship_required'         => (bool) $user->sponsorship_required,
                 'employer_self_check_required' => (bool) $user->employer_self_check_required,
                 'selfie_uploaded'              => (bool) $user->selfie_file_url,
                 'selfie_verified'              => $user->selfie_verified_at !== null,

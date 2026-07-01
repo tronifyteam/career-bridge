@@ -15,7 +15,6 @@ class ApplicationStatusHistory extends Model
         'application_id',
         'verified_badge_status',
         'ready_to_work_status',
-        'sponsorship_required',
         'employer_self_check_required',
         'worker_nationality',
         'worker_type_slug',
@@ -26,7 +25,6 @@ class ApplicationStatusHistory extends Model
     protected function casts(): array
     {
         return [
-            'sponsorship_required'        => 'boolean',
             'employer_self_check_required'=> 'boolean',
             'recorded_at'                 => 'datetime',
         ];
@@ -48,7 +46,6 @@ class ApplicationStatusHistory extends Model
             'id'                          => $this->id,
             'verified_badge_status'       => $this->verified_badge_status,
             'ready_to_work_status'        => $this->ready_to_work_status,
-            'sponsorship_required'        => $this->sponsorship_required,
             'employer_self_check_required'=> $this->employer_self_check_required,
             'worker_nationality'          => $this->worker_nationality,
             'worker_type_slug'            => $this->worker_type_slug,

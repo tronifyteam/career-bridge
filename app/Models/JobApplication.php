@@ -90,7 +90,6 @@ class JobApplication extends Model
                 'worker_type'            => $worker->worker_type,
                 'verified_badge_status'  => $worker->verified_badge_status,
                 'ready_to_work_status'   => $worker->ready_to_work_status,
-                'sponsorship_required'   => (bool) $worker->sponsorship_required,
                 'cv_url'                 => $worker->cv_url, // Always visible if they applied
                 // Extended profile fields
                 'gender'                 => $worker->gender,

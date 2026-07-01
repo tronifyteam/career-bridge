@@ -100,7 +100,6 @@ class JobApplicationController extends Controller
                 'application_id'              => $application->id,
                 'verified_badge_status'       => $user->verified_badge_status ?? 'unverified',
                 'ready_to_work_status'        => $user->ready_to_work_status ?? 'not_ready',
-                'sponsorship_required'        => (bool) $user->sponsorship_required,
                 'employer_self_check_required'=> (bool) $user->employer_self_check_required,
                 'worker_nationality'          => $user->nationality,
                 'worker_type_slug'            => $user->worker_type,
