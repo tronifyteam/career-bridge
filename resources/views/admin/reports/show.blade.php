@@ -16,7 +16,7 @@
         <form action="{{ route('admin.reports.update_status', $report) }}" method="POST" class="d-inline">
             @csrf
             @method('PATCH')
-            <input type="hidden" name="status" value="investigating">
+            <input type="hidden" name="status" value="in_review">
             <button type="submit" class="btn btn-info"><i class="bi bi-search me-1"></i> Investigate</button>
         </form>
         @endif
@@ -121,9 +121,9 @@
                         <label class="form-label fw-bold">Current Status</label>
                         <select name="status" class="form-select">
                             <option value="pending" {{ $report->status == 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="investigating" {{ $report->status == 'investigating' ? 'selected' : '' }}>Investigating</option>
+                            <option value="in_review" {{ $report->status == 'in_review' ? 'selected' : '' }}>Investigating</option>
                             <option value="resolved" {{ $report->status == 'resolved' ? 'selected' : '' }}>Resolved (Valid Report)</option>
-                            <option value="dismissed" {{ $report->status == 'dismissed' ? 'selected' : '' }}>Dismissed (Invalid Report)</option>
+                            <option value="rejected" {{ $report->status == 'rejected' ? 'selected' : '' }}>Dismissed (Invalid Report)</option>
                         </select>
                     </div>
 
