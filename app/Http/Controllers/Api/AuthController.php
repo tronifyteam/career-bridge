@@ -642,7 +642,7 @@ class AuthController extends Controller
         if (array_key_exists('sponsorship_required', $validated)) {
             $newSponsorshipValue = (bool) $validated['sponsorship_required'];
             // Guard: worker cannot self-remove sponsorship requirement without admin-approved open work permit
-            if ($newSponsorshipValue === false && $user->isWorker()) {
+            if ($newSponsorshipValue === false && $user->sponsorship_required == true && $user->isWorker()) {
                 if ($user->open_work_right_status !== 'approved') {
                     return response()->json([
                         'success' => false,
