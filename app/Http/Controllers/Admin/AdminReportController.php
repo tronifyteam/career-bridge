@@ -116,10 +116,10 @@ class AdminReportController extends Controller
         // Push in-app notification
         AppNotification::create([
             'user_id'           => $user->id,
-            'notification_type' => 'account_suspended',
+            'type'              => 'account_suspended',
             'title'             => '🚫 Account Suspended',
             'body'              => "Your account has been suspended. Reason: {$reason}",
-            'data'              => json_encode(['action' => 'account_suspended']),
+            'data'              => ['action' => 'account_suspended'],
         ]);
 
         return redirect()->back()->with('success', 'User suspended and all active sessions revoked.');
@@ -136,10 +136,10 @@ class AdminReportController extends Controller
         if ($job->employer_id) {
             AppNotification::create([
                 'user_id'           => $job->employer_id,
-                'notification_type' => 'job_suspended',
+                'type'              => 'job_suspended',
                 'title'             => 'Job Post Suspended',
                 'body'              => "Your job post \"{$job->title}\" has been suspended after review.",
-                'data'              => json_encode(['job_id' => $job->id]),
+                'data'              => ['job_id' => $job->id],
             ]);
         }
 
@@ -195,10 +195,10 @@ class AdminReportController extends Controller
                 // Notify user
                 AppNotification::create([
                     'user_id'           => $user->id,
-                    'notification_type' => 'account_suspended',
+                    'type'              => 'account_suspended',
                     'title'             => '🚫 Account Suspended',
                     'body'              => $suspendReason,
-                    'data'              => json_encode(['action' => 'account_suspended']),
+                    'data'              => ['action' => 'account_suspended'],
                 ]);
             }
         }
@@ -227,13 +227,13 @@ class AdminReportController extends Controller
 
         AppNotification::create([
             'user_id'           => $report->reporter_id,
-            'notification_type' => 'report_update',
+            'type'              => 'report_update',
             'title'             => $messages[$newStatus]['title'],
             'body'              => $messages[$newStatus]['body'],
-            'data'              => json_encode([
+            'data'              => [
                 'report_id' => $report->id,
                 'status'    => $newStatus,
-            ]),
+            ],
         ]);
     }
 }
