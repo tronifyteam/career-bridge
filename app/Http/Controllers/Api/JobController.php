@@ -49,6 +49,16 @@ class JobController extends Controller
         if ($request->boolean('urgent')) {
             $query->urgent();
         }
+        if ($request->boolean('verification_required') || $request->boolean('ready_to_work_only')) {
+            $user = auth('sanctum')->user();
+            if ($user && $user->ready_to_work_status !== 'ready') {
+                // If worker is not ready, only show jobs that do NOT require verification (so they can apply)
+                $query->where('verification_required', false);
+            } else {
+                // If worker is ready (or guest), show Premium jobs that strictly require verification
+                $query->where('verification_required', true);
+            }
+        }
 
         // Sort: sponsored first, then urgent, then newest
         $query->orderByDesc('is_sponsored')

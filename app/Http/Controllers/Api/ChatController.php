@@ -678,6 +678,12 @@ class ChatController extends Controller
         $workerId = $request->user()->isWorker() ? $me : $userId;
         $employerId = $request->user()->isEmployer() ? $me : $userId;
 
+        $hasAnyApplication = JobApplication::where('user_id', $workerId)
+            ->whereHas('job', function ($q) use ($employerId) {
+                $q->where('employer_id', $employerId);
+            })
+            ->exists();
+
         $hasActiveApplication = JobApplication::where('user_id', $workerId)
             ->whereHas('job', function ($q) use ($employerId) {
                 $q->where('employer_id', $employerId);
@@ -691,6 +697,7 @@ class ChatController extends Controller
                 'is_closed'  => $conversation?->is_closed ?? false,
                 'is_blocked' => $isBlocked,
                 'has_active_application' => $hasActiveApplication,
+                'has_any_application'    => $hasAnyApplication,
             ],
         ]);
     }
