@@ -694,7 +694,7 @@ class AuthController extends Controller
         if ($request->hasFile('avatar')) {
             $file = $request->file('avatar');
             $filename = 'avatar_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('avatars', $filename);
+            $path = $file->storeAs('avatars', $filename, 'public');
 
             // Delete old avatar if exists and not default
             if ($user->avatar_url) {
@@ -762,7 +762,7 @@ class AuthController extends Controller
         if ($request->hasFile('cv')) {
             $file = $request->file('cv');
             $filename = 'cv_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('cvs', $filename);
+            $path = $file->storeAs('cvs', $filename, 'public');
 
             // Generate full public URL
             $url = asset(\Illuminate\Support\Facades\Storage::url($path));

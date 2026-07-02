@@ -58,7 +58,7 @@ class UserOnboardingController extends Controller
 
         $file = $request->file('selfie');
         $filename = 'selfie_'.$user->id.'_'.time().'.'.$file->getClientOriginalExtension();
-        $path = $file->storeAs('selfies', $filename);
+        $path = $file->storeAs('selfies', $filename, 'public');
         $url = asset(\Illuminate\Support\Facades\Storage::url($path));
 
         $isMatch = filter_var($request->is_face_match, FILTER_VALIDATE_BOOLEAN);

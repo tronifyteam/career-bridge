@@ -137,7 +137,7 @@ class WorkerDocumentController extends Controller
         $file = $request->file('file');
 
         $filename = 'doc_' . $user->id . '_' . $docType->slug . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $path     = $file->storeAs('worker_documents', $filename);
+        $path     = $file->storeAs('worker_documents', $filename, 'public');
         $url      = asset(\Illuminate\Support\Facades\Storage::url($path));
 
         DB::beginTransaction();
@@ -250,7 +250,7 @@ class WorkerDocumentController extends Controller
 
         $file     = $request->file('file');
         $filename = 'personal_' . $user->id . '_' . $docType->slug . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $path     = $file->storeAs('worker_personal_documents', $filename);
+        $path     = $file->storeAs('worker_personal_documents', $filename, 'public');
         $url      = asset(\Illuminate\Support\Facades\Storage::url($path));
 
         DB::beginTransaction();
