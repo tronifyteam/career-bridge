@@ -142,14 +142,28 @@ class WorkerDocumentController extends Controller
 
         DB::beginTransaction();
         try {
-            // Create the document record
-            $document = WorkerDocument::create([
-                'user_id'           => $user->id,
-                'document_type_id'  => $docType->id,
-                'file_url'          => $url,
-                'original_filename' => $file->getClientOriginalName(),
-                'review_status'     => 'pending',
-            ]);
+            // Check if there is an existing pending document of this type
+            $existing = WorkerDocument::where('user_id', $user->id)
+                ->where('document_type_id', $docType->id)
+                ->where('review_status', 'pending')
+                ->first();
+
+            if ($existing) {
+                $existing->update([
+                    'file_url'          => $url,
+                    'original_filename' => $file->getClientOriginalName(),
+                ]);
+                $document = $existing;
+            } else {
+                // Create the document record
+                $document = WorkerDocument::create([
+                    'user_id'           => $user->id,
+                    'document_type_id'  => $docType->id,
+                    'file_url'          => $url,
+                    'original_filename' => $file->getClientOriginalName(),
+                    'review_status'     => 'pending',
+                ]);
+            }
 
             // Update or create requirement entry
             \App\Models\WorkerDocumentRequirement::updateOrCreate(
