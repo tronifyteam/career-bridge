@@ -54,6 +54,14 @@ class User extends Authenticatable
         'available_date',
         'expected_salary',
         'notification_preferences',
+        'verified_badge_status',
+        'verified_badge_updated_at',
+        'ready_to_work_status',
+        'ready_to_work_updated_at',
+        'open_work_right_status',
+        'employer_self_check_required',
+        'trust_score',
+        'violation_count',
     ];
 
     protected $hidden = ['password', 'remember_token', 'fcm_token', 'provider_id'];

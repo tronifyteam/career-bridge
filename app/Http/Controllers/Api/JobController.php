@@ -292,6 +292,10 @@ class JobController extends Controller
             // If auto-rejected by screening, override status
             if ($screenResult['auto_rejected'] && $status !== 'rejected') {
                 $job->update(['status' => 'rejected']);
+                $status = 'rejected';
+            } elseif ($screenResult['requires_manual_review'] && $status === 'published') {
+                $job->update(['status' => 'submitted_for_review']);
+                $status = 'submitted_for_review';
             }
             
             DB::commit();
@@ -477,7 +481,11 @@ class JobController extends Controller
             $job->update($validated);
 
             // M5: Re-run full screening after update
-            app(JobScreeningService::class)->screenAndSave($job);
+            $screenResult = app(JobScreeningService::class)->screenAndSave($job);
+            
+            if ($screenResult['requires_manual_review'] && $job->status === 'published') {
+                $job->update(['status' => 'submitted_for_review']);
+            }
             
             DB::commit();
         } catch (\Exception $e) {
